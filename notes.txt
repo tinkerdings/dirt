@@ -1,0 +1,92 @@
+================================================================================
+=========================[WIN32 DIRECTORIES AND FILES]==========================
+================================================================================
+Directory tree:
+DIRECTORY(0) (Parent) <- Directory Entry table, containing files.
+\_DIRECTORY(1) (Child)
+\_DIRECTORY(2) (Child)
+\_FILE(0) (Child)
+
+Dir entry table contains entries for files.
+Can contain multiple entries for the same file,
+additional entries are hard links.
+No limit on amount of hard links to a file.
+
+Directories Can also contain other directories, junctions and reparse points.
+================================================================================
+
+CREATING AND DELETING DIRECTORIES:
+
+===[Functions]===
+* Creation
+  - CreateDirectory
+  - CreateDirectoryEx
+  - CreateDirectoryTransacted
+
+* Deletion
+  - RemoveDirectory
+  - RemoveDirectoryTransacted
+
+* Access priviledge
+  - GetSecurityInfo
+
+================================================================================
+
+DIRECTORY HANDLES
+
+When a directory is created, it returns a handle to the directory object.
+
+===[Functions]===
+* Obtain directory handle
+  - CreateFile, (With FILE_FLAG_BACKUP_SEMANTICS flag).
+* Backup
+  - BackupRead, Back up a file or dir, including security info.
+  - BackupWrite, Restore file or dir that was backed up by BackupRead.
+  - BackupSeek, Seek forward in data stream accessed by BackupRead or BackupWrite.
+* Info
+  - GetFileInformationByHandle
+  - GetFileSize
+  - GetFileTime
+  - GetFileType
+  - ReadDirectoryChangesW
+* Modify
+  - SetFileTime
+
+================================================================================
+
+REPARSE POINTS
+
+Metadata specifying how lookup of a file is to be interprated...
+ex. Application Data, takes you to Appdata\Roaming.
+Reparse tags...
+Read more at page 8 (windows-win32-fileio.pdf)
+
+===[Functions]===
+* Operations
+  - DeviceIoControl
+
+================================================================================
+
+DIRECTORY MANAGEMENT
+
+An Application can only have one current directory at any given time.
+However, the system remembers the current directory for each volume (drive letter).
+
+===[Functions]===
+* Current directory
+  - GetCurrentDirectory
+  - SetCurrentDirectory
+  - GetFullPathName
+* Listing files in dir
+  - FindFirstFile
+  - FindNextFile
+  - FindClose
+* Moving files and directories
+  - MoveFileEx
+  - MoveFileWithProgress
+  - MoveFileTransacted
+* Directory Changes
+  - FindFirstChangeNotification
+  - FindNextChangeNotification
+  - FindCloseChangeNotification
+  - ReadDirectoryChangesW
