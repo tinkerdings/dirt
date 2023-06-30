@@ -1,41 +1,65 @@
 #include <windows.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <string.h>
+#include <winerror.h>
+#include <winnt.h>
 
 #define BUFSIZE MAX_PATH
 
 int main(int argc, char **argv)
 {
-  DWORD ret;
-  char dirName[BUFSIZE];
+  WIN32_FIND_DATA fileInfo;
+  LARGE_INTEGER fileSize;
+  HANDLE entry = INVALID_HANDLE_VALUE;
+  DWORD error = 0;
+  char dirName[MAX_PATH] = {0};
 
-  /* if(argc != 2) */
-  /* { */
-  /*   printf("Usage: %s <dir>\n", argv[0]); */
-  /*   return 1; */
-  /* } */
-
-  printf("Getting current directory....\n");
-
-  ret = GetCurrentDirectory(BUFSIZE, dirName);
-
-  if(!ret)
+  if(argc != 2)
   {
-    printf("GetCurrentDirectory failed (%d)\n", GetLastError());
+    printf("Usage: %s <directory name>\n", argv[0]);
+    return 1;
+  }
+  if(strlen(argv[1]) > (MAX_PATH - 3))
+  {
+    printf("Directory path is too long.\n");
     return 1;
   }
 
-  if(ret > BUFSIZE)
+  printf("Target directory is %s\n", argv[1]);
+  strcpy(dirName, argv[1]);
+  strcat(dirName, "\\*");
+
+  entry = FindFirstFile(dirName, &fileInfo);
+  if(entry == INVALID_HANDLE_VALUE)
   {
-    printf("Buffer too small. Need %d characters for current dir path name\n", ret);
+    printf("Failed to find file (%d)\n", GetLastError());
     return 1;
   }
 
-  if(!dirName)
+  do
   {
-    printf("Failed to get current directory name (%d)\n", GetLastError());
+    if(fileInfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+    {
+      printf("  %s   <DIR>\n", fileInfo.cFileName);
+    }
+    else 
+    {
+      fileSize.LowPart = fileInfo.nFileSizeLow;
+      fileSize.HighPart = fileInfo.nFileSizeHigh;
+      printf("  %s   %lld bytes\n", fileInfo.cFileName, fileSize.QuadPart);
+    }
+  }
+  while(FindNextFile(entry, &fileInfo));
+
+  error = GetLastError();
+  if(error != ERROR_NO_MORE_FILES)
+  {
+    printf("error: %d\n", error);
     return 1;
   }
-  printf("Current Directory: %s\n", dirName);
 
-  return 0;
+  FindClose(entry);
+
+  return error;
 }
