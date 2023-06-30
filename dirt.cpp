@@ -8,13 +8,11 @@ int main(int argc, char **argv)
   DWORD ret;
   char dirName[BUFSIZE];
 
-  /* if(argc != 2) */
-  /* { */
-  /*   printf("Usage: %s <dir>\n", argv[0]); */
-  /*   return 1; */
-  /* } */
-
-  printf("Getting current directory....\n");
+  if(argc != 2)
+  {
+    printf("Usage: %s <dir>\n", argv[0]);
+    return 1;
+  }
 
   ret = GetCurrentDirectory(BUFSIZE, dirName);
 
@@ -35,7 +33,20 @@ int main(int argc, char **argv)
     printf("Failed to get current directory name (%d)\n", GetLastError());
     return 1;
   }
-  printf("Current Directory: %s\n", dirName);
+
+  if(!SetCurrentDirectory(argv[1]))
+  {
+    printf("SetCurrentDirectory failed (%d)\n", GetLastError());
+    return 1;
+  }
+  printf("Set current directory to %s\n", argv[1]);
+
+  if(!SetCurrentDirectory(dirName))
+  {
+    printf("SetCurrentDirectory failed (%d)\n", GetLastError());
+    return 1;
+  }
+  printf("Restored previous directory (%s)\n", dirName);
 
   return 0;
 }
