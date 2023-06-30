@@ -2,6 +2,8 @@
 
 pushd .\build
 
-.\dirt.exe
+set ARG=%1
+
+.\dirt.exe %1%
 
  popd
