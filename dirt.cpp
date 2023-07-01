@@ -4,12 +4,23 @@
 #include <string.h>
 #include <winerror.h>
 
+struct DirectoryView
+{
+  HANDLE backBuffer, frontBuffer;
+  SMALL_RECT destinationRect;
+};
+
 WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries);
 
 int main(int argc, char **argv)
 {
 
   return 0;
+}
+
+void displayDirectoryEntries(WIN32_FIND_DATA *entries, size_t nEntries)
+{
+
 }
 
 // Searches specified directory for files and directories,
