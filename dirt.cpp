@@ -3,61 +3,58 @@
 #include <stdio.h>
 #include <string.h>
 #include <winerror.h>
-#include <winnt.h>
+
+WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries);
 
 int main(int argc, char **argv)
 {
-  WIN32_FIND_DATA fileInfo;
-  LARGE_INTEGER fileSize;
+
+  return 0;
+}
+
+// Searches specified directory for files and directories,
+// returns number of entries found, and stores entries in <entries> argument
+WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
+{
   HANDLE entry = INVALID_HANDLE_VALUE;
-  DWORD error = 0;
-  char dirName[MAX_PATH] = {0};
+  size_t maxEntries = 128;
+  WIN32_FIND_DATA *entries = (WIN32_FIND_DATA *)malloc(maxEntries * sizeof(WIN32_FIND_DATA));
 
-  if(argc != 2)
-  {
-    printf("Usage: %s <directory name>\n", argv[0]);
-    return 1;
-  }
-  if(strlen(argv[1]) > (MAX_PATH - 3))
-  {
-    printf("Directory path is too long.\n");
-    return 1;
-  }
-
-  printf("Target directory is %s\n", argv[1]);
-  strcpy(dirName, argv[1]);
-  strcat(dirName, "\\*");
-
-  entry = FindFirstFile(dirName, &fileInfo);
+  entry = FindFirstFile(dirPath, &entries[0]);
   if(entry == INVALID_HANDLE_VALUE)
   {
-    printf("Failed to find file (%d)\n", GetLastError());
-    return 1;
+    printf("FindFirstFile failed (%lu\n", GetLastError());
+    free(entries);
+    return 0;
   }
 
-  do
+  size_t i = 1;
+  BOOL findSuccess = 1;
+  while(1)
   {
-    if(fileInfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+    while((i < maxEntries) && (findSuccess = FindNextFile(entry, &entries[i++]))){}
+    DWORD error;
+
+    if(!findSuccess && ((error = GetLastError()) != ERROR_NO_MORE_FILES))
     {
-      printf("  %s   <DIR>\n", fileInfo.cFileName);
+      printf("FindNextFile failed (%lu)\n", error);
+      free(entries);
+      return 0;
     }
     else 
     {
-      fileSize.LowPart = fileInfo.nFileSizeLow;
-      fileSize.HighPart = fileInfo.nFileSizeHigh;
-      printf("  %s   %lld bytes\n", fileInfo.cFileName, fileSize.QuadPart);
+      if(error == ERROR_NO_MORE_FILES)
+      {
+        break;
+      }
+      maxEntries *= 2;
+      realloc(entries, maxEntries);
     }
-  }
-  while(FindNextFile(entry, &fileInfo));
-
-  error = GetLastError();
-  if(error != ERROR_NO_MORE_FILES)
-  {
-    printf("error: %d\n", error);
-    return 1;
   }
 
   FindClose(entry);
 
-  return error;
+  nEntries = i--;
+
+  return entries;
 }
