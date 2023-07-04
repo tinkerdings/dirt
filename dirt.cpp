@@ -2,25 +2,199 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <winerror.h>
 
 struct DirectoryView
 {
-  HANDLE backBuffer, frontBuffer;
-  SMALL_RECT destinationRect;
+  char path[MAX_PATH] = {0};
+  SMALL_RECT renderRect = {0};
+  SHORT width = 0, height = 0;
+  size_t nEntries = 0;
+  WIN32_FIND_DATA *entries = 0;
+  uint32_t cursorIndex = 0;
 };
 
+struct Screen
+{
+  HANDLE backBuffer, frontBuffer;
+  DirectoryView leftView, rightView;
+};
+
+struct GlobalState
+{
+  Screen *currentScreen = 0;
+} globalState;
+
 WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries);
+bool allocScreen(Screen &screen);
+bool initScreenDirectoryViews(Screen &screen);
+void renderScreenDirectoryViews(Screen &screen);
+void renderDirectoryView(Screen &screen, DirectoryView &view);
+void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
+void styleView(HANDLE screenBuffer, DirectoryView view);
+void swapScreenBuffers(Screen &screen);
 
 int main(int argc, char **argv)
 {
+  Screen firstScreen;
+  if(!allocScreen(firstScreen))
+  {
+    printf("Failed to allocate console screen buffer (%lu)\n", GetLastError());
+    return 1;
+  }
+  globalState.currentScreen = &firstScreen;
+  initScreenDirectoryViews(firstScreen);
+
+  while(1)
+  {
+    renderScreenDirectoryViews(*globalState.currentScreen);
+    styleView(firstScreen.backBuffer, firstScreen.leftView);
+    styleView(firstScreen.backBuffer, firstScreen.rightView);
+    swapScreenBuffers(firstScreen);
+  }
+
+  free(firstScreen.leftView.entries);
+  free(firstScreen.rightView.entries);
 
   return 0;
 }
 
-void displayDirectoryEntries(WIN32_FIND_DATA *entries, size_t nEntries)
+bool initScreenDirectoryViews(Screen &screen)
 {
+  const char *leftPath = ".//*";
+  const char *rightPath = "..//*";
 
+  strcpy(screen.leftView.path, leftPath);
+  screen.leftView.renderRect.Top = 0;
+  screen.leftView.renderRect.Left = 0;
+  screen.leftView.renderRect.Bottom = 80;
+  screen.leftView.renderRect.Right = 40;
+  screen.leftView.width = screen.leftView.renderRect.Right - screen.leftView.renderRect.Left;
+  screen.leftView.height = screen.leftView.renderRect.Bottom - screen.leftView.renderRect.Top;
+  screen.leftView.entries = findDirectoryEntries(screen.leftView.path, screen.leftView.nEntries);
+  if(!screen.leftView.entries)
+  {
+    printf("findDirectoryEntries failed (%lu)\n", GetLastError());
+    return false;
+  }
+
+  strcpy(screen.rightView.path, rightPath);
+  screen.rightView.renderRect.Top = 0;
+  screen.rightView.renderRect.Left = 42;
+  screen.rightView.renderRect.Bottom = 80;
+  screen.rightView.renderRect.Right = 82;
+  screen.rightView.width = screen.rightView.renderRect.Right - screen.rightView.renderRect.Left;
+  screen.rightView.height = screen.rightView.renderRect.Bottom - screen.rightView.renderRect.Top;
+  screen.rightView.entries = findDirectoryEntries(screen.rightView.path, screen.rightView.nEntries);
+  if(!screen.rightView.entries)
+  {
+    printf("findDirectoryEntries failed (%lu)\n", GetLastError());
+    return false;
+  }
+
+  return true;
+}
+
+bool allocScreen(Screen &screen)
+{
+  screen.backBuffer = CreateConsoleScreenBuffer(
+    GENERIC_READ | GENERIC_WRITE,
+    FILE_SHARE_READ | FILE_SHARE_WRITE,
+    NULL,
+    CONSOLE_TEXTMODE_BUFFER,
+    NULL);
+  screen.frontBuffer = CreateConsoleScreenBuffer(
+    GENERIC_READ | GENERIC_WRITE,
+    FILE_SHARE_READ | FILE_SHARE_WRITE,
+    NULL,
+    CONSOLE_TEXTMODE_BUFFER,
+    NULL);
+
+  if((screen.backBuffer == INVALID_HANDLE_VALUE) || (screen.frontBuffer == INVALID_HANDLE_VALUE))
+  {
+    return false;
+  }
+
+  return true;
+}
+
+void renderScreenDirectoryViews(Screen &screen)
+{
+  renderDirectoryView(screen, screen.leftView);
+  renderDirectoryView(screen, screen.rightView);
+}
+
+void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory)
+{
+  size_t filenameLength = strlen(filename);
+  int i = 0;
+  for(; i < filenameLength; i++)
+  {
+    CHAR_INFO ci = {(WCHAR)filename[i], FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE };
+    buffer[i] = ci;
+  }
+  if(isDirectory)
+  {
+    CHAR_INFO ci = {'/', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE };
+    buffer[i] = ci;
+  }
+}
+
+void styleView(HANDLE screenBuffer, DirectoryView view)
+{
+  for(int i = 0; i < view.nEntries; i++)
+  {
+    WORD attributes = view.entries[i].dwFileAttributes;
+    
+    COORD coords;
+    coords.X = view.renderRect.Left;
+    coords.Y = i;
+    size_t filenameLength = strlen(view.entries[i].cFileName);
+    DWORD nSet = 0;
+
+    if(attributes & FILE_ATTRIBUTE_DIRECTORY)
+    {
+      FillConsoleOutputAttribute(
+          screenBuffer,
+          FOREGROUND_RED | FOREGROUND_GREEN,
+          filenameLength+1,
+          coords,
+          &nSet);
+    }
+  }
+}
+
+void swapScreenBuffers(Screen &screen)
+{
+  HANDLE temp = screen.frontBuffer;
+  screen.frontBuffer = screen.backBuffer;
+  screen.backBuffer = temp;
+  if(!SetConsoleActiveScreenBuffer(screen.frontBuffer))
+  {
+    printf("SetConsoleActiveScreenBuffer failed (%lu)\n", GetLastError());
+    return;
+  }
+}
+
+void renderDirectoryView(Screen &screen, DirectoryView &view)
+{
+  for(int i = 0; i < view.nEntries; i++)
+  {
+    CHAR_INFO filename[MAX_PATH] = {0};
+    bool isDirectory = (view.entries[i].dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+    createFilenameCharInfoBuffer(filename, view.entries[i].cFileName, view.width, isDirectory);
+    COORD filenameSize {view.width, 1};
+    COORD filenamePos = {0, 0};
+    SMALL_RECT rect;
+    rect.Top = view.renderRect.Top+i;
+    rect.Left = view.renderRect.Left;
+    rect.Bottom = view.renderRect.Bottom;
+    rect.Right = view.renderRect.Right;
+    if(!WriteConsoleOutput(screen.backBuffer, filename, filenameSize, filenamePos, &rect))
+    {
+      printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
+      return;
+    }
+  }
 }
 
 // Searches specified directory for files and directories,
@@ -65,7 +239,7 @@ WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
 
   FindClose(entry);
 
-  nEntries = i--;
+  nEntries = --i;
 
   return entries;
 }
