@@ -23,7 +23,7 @@ struct DirectoryView
 struct Screen
 {
   HANDLE backBuffer, frontBuffer;
-  DirectoryView leftView, rightView;
+  DirectoryView leftView, rightView, *active;
 };
 
 struct GlobalState
@@ -38,9 +38,13 @@ bool initScreenDirectoryViews(Screen &screen);
 void renderScreenDirectoryViews(Screen &screen);
 void renderDirectoryView(Screen &screen, DirectoryView &view);
 void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
+void styleScreenViews(Screen &screen);
 void styleView(HANDLE screenBuffer, DirectoryView view);
+void highlightLine(Screen &screen);
 void swapScreenBuffers(Screen &screen);
 void handleInput(Screen &screen, HANDLE stdinHandle);
+void incrementScreenCursorIndex(Screen &screen);
+void decrementScreenCursorIndex(Screen &screen);
 
 int main(int argc, char **argv)
 {
@@ -65,8 +69,7 @@ int main(int argc, char **argv)
   while(!globalState.quit)
   {
     renderScreenDirectoryViews(*globalState.currentScreen);
-    styleView(globalState.currentScreen->backBuffer, globalState.currentScreen->leftView);
-    styleView(globalState.currentScreen->backBuffer, globalState.currentScreen->rightView);
+    styleScreenViews(*globalState.currentScreen);
     swapScreenBuffers(*globalState.currentScreen);
     handleInput(*globalState.currentScreen, stdinHandle);
   }
@@ -94,6 +97,10 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
     {
       case(KEY_EVENT):
       {
+        if(!inputBuffer[i].Event.KeyEvent.bKeyDown)
+        {
+          break;
+        }
         switch(inputBuffer[i].Event.KeyEvent.wVirtualKeyCode)
         {
           case(VK_ESCAPE):
@@ -102,9 +109,53 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
             globalState.quit = true;
             return;
           } break;
+          case(VK_J):
+          {
+            incrementScreenCursorIndex(screen);
+          } break;
+          case(VK_K):
+          {
+            decrementScreenCursorIndex(screen);
+          } break;
+          case(VK_TAB):
+          {
+            if(screen.active == &screen.leftView)
+            {
+              screen.active = &screen.rightView;
+            }
+            else 
+            {
+              screen.active = &screen.leftView;
+            }
+          } break;
         }
       } break;
     }
+  }
+}
+
+void incrementScreenCursorIndex(Screen &screen)
+{
+  uint32_t currentIndex = screen.active->cursorIndex;
+  if(currentIndex < (screen.active->nEntries-1))
+  {
+    screen.active->cursorIndex++;
+  }
+  else 
+  {
+    screen.active->cursorIndex = 0;
+  }
+}
+void decrementScreenCursorIndex(Screen &screen)
+{
+  uint32_t currentIndex = screen.active->cursorIndex;
+  if(currentIndex > 0)
+  {
+    screen.active->cursorIndex--;
+  }
+  else 
+  {
+    screen.active->cursorIndex = screen.active->nEntries-1;
   }
 }
 
@@ -140,6 +191,8 @@ bool initScreenDirectoryViews(Screen &screen)
     printf("findDirectoryEntries failed (%lu)\n", GetLastError());
     return false;
   }
+
+  screen.active = &screen.leftView;
 
   return true;
 }
@@ -211,6 +264,37 @@ void styleView(HANDLE screenBuffer, DirectoryView view)
           &nSet);
     }
   }
+}
+
+void highlightLine(Screen &screen)
+{
+  size_t cursorFilenameLength = strlen(screen.active->entries[screen.active->cursorIndex].cFileName);
+  size_t emptySpace = 
+    screen.active->width - cursorFilenameLength;
+  COORD coords;
+  DWORD nSet = 0;
+  coords.X = screen.active->renderRect.Left;
+  coords.Y = screen.active->cursorIndex;
+  FillConsoleOutputAttribute(
+    screen.backBuffer,
+    BACKGROUND_BLUE,
+    screen.active->width,
+    coords,
+    &nSet);
+
+  coords.X += cursorFilenameLength;
+  FillConsoleOutputCharacter(screen.backBuffer,
+    ' ',
+    emptySpace,
+    coords,
+    &nSet);
+}
+
+void styleScreenViews(Screen &screen)
+{
+  styleView(screen.backBuffer, screen.leftView);
+  styleView(screen.backBuffer, screen.rightView);
+  highlightLine(screen);
 }
 
 void swapScreenBuffers(Screen &screen)
