@@ -3,6 +3,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#define VK_Q 0x51
+
+#define VK_H 0x48
+#define VK_J 0x4A
+#define VK_K 0x4B
+#define VK_L 0x4C
+
 struct DirectoryView
 {
   char path[MAX_PATH] = {0};
@@ -22,6 +29,7 @@ struct Screen
 struct GlobalState
 {
   Screen *currentScreen = 0;
+  bool quit = false;
 } globalState;
 
 WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries);
@@ -32,6 +40,7 @@ void renderDirectoryView(Screen &screen, DirectoryView &view);
 void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
 void styleView(HANDLE screenBuffer, DirectoryView view);
 void swapScreenBuffers(Screen &screen);
+void handleInput(Screen &screen, HANDLE stdinHandle);
 
 int main(int argc, char **argv)
 {
@@ -44,18 +53,59 @@ int main(int argc, char **argv)
   globalState.currentScreen = &firstScreen;
   initScreenDirectoryViews(firstScreen);
 
-  while(1)
+  HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
+  if(stdinHandle == INVALID_HANDLE_VALUE)
+  {
+    printf("GetStdHandle failed (%lu)\n", GetLastError());
+    return 1;
+  }
+
+  SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
+
+  while(!globalState.quit)
   {
     renderScreenDirectoryViews(*globalState.currentScreen);
-    styleView(firstScreen.backBuffer, firstScreen.leftView);
-    styleView(firstScreen.backBuffer, firstScreen.rightView);
-    swapScreenBuffers(firstScreen);
+    styleView(globalState.currentScreen->backBuffer, globalState.currentScreen->leftView);
+    styleView(globalState.currentScreen->backBuffer, globalState.currentScreen->rightView);
+    swapScreenBuffers(*globalState.currentScreen);
+    handleInput(*globalState.currentScreen, stdinHandle);
   }
 
   free(firstScreen.leftView.entries);
   free(firstScreen.rightView.entries);
 
   return 0;
+}
+
+void handleInput(Screen &screen, HANDLE stdinHandle)
+{
+  INPUT_RECORD inputBuffer[3] = {0};
+  DWORD nRecordsRead = 0;
+  if(!ReadConsoleInput(
+    stdinHandle, inputBuffer, 3, &nRecordsRead))
+  {
+    printf("ReadConsoleInput failed (%lu)\n", GetLastError());
+    return;
+  }
+
+  for(int i = 0; i < nRecordsRead; i++)
+  {
+    switch(inputBuffer[i].EventType)
+    {
+      case(KEY_EVENT):
+      {
+        switch(inputBuffer[i].Event.KeyEvent.wVirtualKeyCode)
+        {
+          case(VK_ESCAPE):
+          case(VK_Q):
+          {
+            globalState.quit = true;
+            return;
+          } break;
+        }
+      } break;
+    }
+  }
 }
 
 bool initScreenDirectoryViews(Screen &screen)
