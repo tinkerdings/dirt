@@ -30,6 +30,7 @@ struct GlobalState
 {
   Screen *currentScreen = 0;
   bool quit = false;
+  size_t maxEntriesInView = 128;
 } globalState;
 
 WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries);
@@ -45,9 +46,12 @@ void swapScreenBuffers(Screen &screen);
 void handleInput(Screen &screen, HANDLE stdinHandle);
 void incrementScreenCursorIndex(Screen &screen);
 void decrementScreenCursorIndex(Screen &screen);
+void setViewPathRelative(DirectoryView &view, const char *relPath);
+void clearScreen(Screen &screen);
 
 int main(int argc, char **argv)
 {
+  CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
   Screen firstScreen;
   if(!allocScreen(firstScreen))
   {
@@ -80,6 +84,62 @@ int main(int argc, char **argv)
   return 0;
 }
 
+void clearScreen(Screen &screen)
+{
+  CHAR_INFO leftClear[MAX_PATH] = {0};
+  for(int i = 0; i < screen.leftView.width; i++)
+  {
+    leftClear[i] = {' ', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE};
+  }
+  for(int i = 0; i < screen.leftView.nEntries; i++)
+  {
+    COORD size {screen.leftView.width, 1};
+    COORD pos = {0, 0};
+    SMALL_RECT rect;
+    rect.Top = screen.leftView.renderRect.Top+i;
+    rect.Left = screen.leftView.renderRect.Left;
+    rect.Bottom = screen.leftView.renderRect.Bottom;
+    rect.Right = screen.leftView.renderRect.Right;
+    if(!WriteConsoleOutput(screen.backBuffer, leftClear, size, pos, &rect))
+    {
+      printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
+      return;
+    }
+    if(!WriteConsoleOutput(screen.frontBuffer, leftClear, size, pos, &rect))
+    {
+      printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
+      return;
+    }
+  }
+  CHAR_INFO rightClear[MAX_PATH] = {0};
+  for(int i = 0; i < screen.rightView.width; i++)
+  {
+    rightClear[i] = {' ', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE};
+  }
+  for(int i = 0; i < screen.rightView.nEntries; i++)
+  {
+    COORD size {screen.rightView.width, 1};
+    COORD pos = {0, 0};
+    SMALL_RECT rect;
+    rect.Top = screen.rightView.renderRect.Top+i;
+    rect.Left = screen.rightView.renderRect.Left;
+    rect.Bottom = screen.rightView.renderRect.Bottom;
+    rect.Right = screen.rightView.renderRect.Right;
+    if(!WriteConsoleOutput(screen.backBuffer, rightClear, size, pos, &rect))
+    {
+      printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
+      return;
+    }
+    if(!WriteConsoleOutput(screen.frontBuffer, rightClear, size, pos, &rect))
+    {
+      printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
+      return;
+    }
+  }
+  screen.leftView.cursorIndex = 0;
+  screen.rightView.cursorIndex = 0;
+}
+
 void handleInput(Screen &screen, HANDLE stdinHandle)
 {
   INPUT_RECORD inputBuffer[3] = {0};
@@ -93,6 +153,7 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
 
   for(int i = 0; i < nRecordsRead; i++)
   {
+    WIN32_FIND_DATA &activeEntry = screen.active->entries[screen.active->cursorIndex];
     switch(inputBuffer[i].EventType)
     {
       case(KEY_EVENT):
@@ -128,10 +189,53 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
               screen.active = &screen.leftView;
             }
           } break;
+          case(VK_L):
+          {
+            printf("activeEntry.dwFileAttributes: %lu\n", activeEntry.dwFileAttributes);
+            if(activeEntry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            {
+              printf("-> directory\n");
+              clearScreen(*globalState.currentScreen);
+              setViewPathRelative(*screen.active, activeEntry.cFileName);
+
+              if(!SetCurrentDirectory(screen.active->path))
+              {
+                printf("Failed to set current directory (%lu)\n", GetLastError());
+              }
+            }
+            else
+            {
+              char fullPath[MAX_PATH] = {0};
+              GetFullPathNameA(activeEntry.cFileName, MAX_PATH, fullPath, 0);
+              printf("fullPath: %s\n", fullPath);
+              ShellExecuteA(0, 0, fullPath, 0, 0, SW_SHOW);
+            }
+          } break;
+          case(VK_H):
+          {
+              clearScreen(*globalState.currentScreen);
+              setViewPathRelative(*screen.active, "..");
+          } break;
         }
       } break;
     }
   }
+}
+
+void setViewPathRelative(DirectoryView &view, const char *relPath)
+{
+  if((strlen(view.path)+strlen(relPath)+2) > MAX_PATH)
+  {
+    printf("path length exceeds limit\n");
+    return;
+  }
+  strcat(view.path, "/");
+  strcat(view.path, relPath);
+
+  free(view.entries);
+  view.entries = 0;
+  globalState.maxEntriesInView = 128;
+  view.entries = findDirectoryEntries(view.path, view.nEntries);
 }
 
 void incrementScreenCursorIndex(Screen &screen)
@@ -161,10 +265,7 @@ void decrementScreenCursorIndex(Screen &screen)
 
 bool initScreenDirectoryViews(Screen &screen)
 {
-  const char *leftPath = ".//*";
-  const char *rightPath = "..//*";
-
-  strcpy(screen.leftView.path, leftPath);
+  strcpy(screen.leftView.path, "C:\\");
   screen.leftView.renderRect.Top = 0;
   screen.leftView.renderRect.Left = 0;
   screen.leftView.renderRect.Bottom = 80;
@@ -178,7 +279,7 @@ bool initScreenDirectoryViews(Screen &screen)
     return false;
   }
 
-  strcpy(screen.rightView.path, rightPath);
+  strcpy(screen.rightView.path, "D:\\");
   screen.rightView.renderRect.Top = 0;
   screen.rightView.renderRect.Left = 42;
   screen.rightView.renderRect.Bottom = 80;
@@ -193,6 +294,11 @@ bool initScreenDirectoryViews(Screen &screen)
   }
 
   screen.active = &screen.leftView;
+  if(!SetCurrentDirectory(screen.leftView.path))
+  {
+    printf("Failed to set current directory (%lu)\n", GetLastError());
+    return false;
+  }
 
   return true;
 }
@@ -335,14 +441,21 @@ void renderDirectoryView(Screen &screen, DirectoryView &view)
 // returns number of entries found, and stores entries in <entries> argument
 WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
 {
+  if((strlen(dirPath)+3) > MAX_PATH)
+  {
+    printf("path length exceeds limit\n");
+    return 0;
+  }
   HANDLE entry = INVALID_HANDLE_VALUE;
-  size_t maxEntries = 128;
-  WIN32_FIND_DATA *entries = (WIN32_FIND_DATA *)malloc(maxEntries * sizeof(WIN32_FIND_DATA));
+  WIN32_FIND_DATA *entries = (WIN32_FIND_DATA *)malloc(globalState.maxEntriesInView * sizeof(WIN32_FIND_DATA));
+  char fullPath[MAX_PATH] = {0};
+  GetFullPathName(dirPath, MAX_PATH, fullPath, 0);
+  strcat(fullPath, "\\*");
 
-  entry = FindFirstFile(dirPath, &entries[0]);
+  entry = FindFirstFile(fullPath, &entries[0]);
   if(entry == INVALID_HANDLE_VALUE)
   {
-    printf("FindFirstFile failed (%lu\n", GetLastError());
+    printf("FindFirstFile failed (%lu)\n", GetLastError());
     free(entries);
     return 0;
   }
@@ -351,7 +464,7 @@ WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
   BOOL findSuccess = 1;
   while(1)
   {
-    while((i < maxEntries) && (findSuccess = FindNextFile(entry, &entries[i++]))){}
+    while((i < globalState.maxEntriesInView) && (findSuccess = FindNextFile(entry, &entries[i++]))){}
     DWORD error;
 
     if(!findSuccess && ((error = GetLastError()) != ERROR_NO_MORE_FILES))
@@ -366,8 +479,8 @@ WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
       {
         break;
       }
-      maxEntries *= 2;
-      realloc(entries, maxEntries);
+      globalState.maxEntriesInView *= 2;
+      realloc(entries, globalState.maxEntriesInView);
     }
   }
 
