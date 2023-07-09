@@ -383,7 +383,7 @@ void highlightLine(Screen &screen)
   coords.Y = screen.active->cursorIndex;
   FillConsoleOutputAttribute(
     screen.backBuffer,
-    BACKGROUND_BLUE,
+    BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN,
     screen.active->width,
     coords,
     &nSet);
