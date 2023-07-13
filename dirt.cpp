@@ -21,6 +21,7 @@
 #define VK_K 0x4B
 #define VK_L 0x4C
 #define VK_M 0x4D
+#define VK_D 0x44
 
 uint32_t errorCode = 0x0;
 
@@ -88,6 +89,7 @@ char **getSelection(int &amountOut);
 void freeSelection(char **selection, int amount);
 void printSelection();
 bool moveSelection();
+bool deleteSelection();
 bool clearAllSelection();
 
 int main(int argc, char **argv)
@@ -295,6 +297,39 @@ char **getSelection(int &amountOut)
 
   amountOut = idx;
   return selected;
+}
+
+bool deleteSelection()
+{
+  int nSelected = 0;
+  char **selection = getSelection(nSelected);
+
+  char currentDir[MAX_PATH] = {0};
+  if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
+  {
+    printf("GetCurrentDirectory failed (%lu)\n", GetLastError());
+    return false;
+  }
+
+  for(int i = 0; i < nSelected; i++)
+  {
+    DWORD fileAttribs = GetFileAttributesA(selection[i]);
+    if(!fileAttribs)
+    {
+      printf("GetFileAttributesA failed (%lu)\n", GetLastError());
+      continue;
+    }
+
+    if(!DeleteFileA(selection[i]))
+    {
+      printf("MoveFileA failed (%lu)\n", GetLastError());
+      return false;
+    }
+  }
+
+  freeSelection(selection, nSelected);
+
+  return true;
 }
 
 bool moveSelection()
@@ -631,6 +666,11 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
           case(VK_M):
           {
             moveSelection();
+            clearAllSelection();
+          } break;
+          case(VK_D):
+          {
+            deleteSelection();
             clearAllSelection();
           } break;
         }
