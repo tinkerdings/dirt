@@ -1,16 +1,28 @@
 #include <windows.h>
+#include <Shlwapi.h>
 #include <DbgHelp.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <winnt.h>
 #include <winuser.h>
 
-#define VK_Q 0x51
+#define DIRT_ERROR_GETFULLPATH 0xAA
+#define DIRT_ERROR_ALLOCATION_FAILURE 0x2
+#define DIRT_ERROR_INVALID_ENTRY 0x4
 
+#define DIRT_SELECTIONBUF_MIN_DUPES 10
+#define DIRT_SELECTIONBUF_MIN_SIZE 512
+#define INPUTBUF_SIZE 3
+
+#define VK_Q 0x51
 #define VK_H 0x48
 #define VK_J 0x4A
 #define VK_K 0x4B
 #define VK_L 0x4C
+#define VK_M 0x4D
+
+uint32_t errorCode = 0x0;
 
 struct DirectoryView
 {
@@ -28,11 +40,27 @@ struct Screen
   DirectoryView leftView, rightView, *active;
 };
 
+struct Input
+{
+  WORD prevKeyCode = -1;
+};
+
+struct SelectionBuffer
+{
+  char ***entryMap = 0;
+  uint32_t index = 0;
+  size_t bufSize = DIRT_SELECTIONBUF_MIN_SIZE;
+  size_t dupeSize = DIRT_SELECTIONBUF_MIN_DUPES;
+  uint32_t nSet = 0;
+};
+
 struct GlobalState
 {
   Screen *currentScreen = 0;
   bool quit = false;
   size_t maxEntriesInView = 128;
+  SelectionBuffer selection;
+  Input input;
 } globalState;
 
 WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries);
@@ -50,6 +78,17 @@ void incrementScreenCursorIndex(Screen &screen);
 void decrementScreenCursorIndex(Screen &screen);
 void setViewPathRelative(DirectoryView &view, const char *relPath);
 void clearScreen(Screen &screen);
+bool getFullPath(char *out, char* relPath, size_t outLen);
+bool selectEntry(char *entryFullPath);
+bool removeEntryFromSelection(char *path);
+bool inputNoKeyRepeat(INPUT_RECORD *inputBuffer, uint32_t index, uint32_t size);
+uint32_t hash(char *str, uint32_t len);
+bool isEntryInSelection(char *path);
+char **getSelection(int &amountOut);
+void freeSelection(char **selection, int amount);
+void printSelection();
+bool moveSelection();
+bool clearAllSelection();
 
 int main(int argc, char **argv)
 {
@@ -61,6 +100,29 @@ int main(int argc, char **argv)
     return 1;
   }
   globalState.currentScreen = &firstScreen;
+  if(!(globalState.selection.entryMap = (char ***)calloc(globalState.selection.bufSize, sizeof(char **))))
+  {
+    printf("Failed to allocate buffer for globalState.selected\n");
+    return 1;
+  }
+  for(int i = 0; i < globalState.selection.bufSize; i++)
+  {
+    if(!(globalState.selection.entryMap[i] = (char **)calloc(DIRT_SELECTIONBUF_MIN_DUPES, sizeof(char *))))
+    {
+      printf("Failed to allocate dupe slots for globalState.selected.entries[i]\n");
+      return 1;
+    }
+    for(int j = 0; j < DIRT_SELECTIONBUF_MIN_DUPES; j++)
+    {
+      if(!(globalState.selection.entryMap[i][j] = (char *)calloc(MAX_PATH, sizeof(char))))
+      {
+        printf("Failed to allocate string for globalState.selected.entries[i][j]\n");
+        return 1;
+      }
+    }
+  }
+  globalState.selection.index = 0;
+
   initScreenDirectoryViews(firstScreen);
 
   HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
@@ -80,10 +142,31 @@ int main(int argc, char **argv)
     handleInput(*globalState.currentScreen, stdinHandle);
   }
 
+  printSelection();
+
+  for(uint32_t i = 0; i < globalState.selection.bufSize; i++)
+  {
+    free(globalState.selection.entryMap[i]);
+  }
+  free(globalState.selection.entryMap);
   free(firstScreen.leftView.entries);
   free(firstScreen.rightView.entries);
 
   return 0;
+}
+
+bool getFullPath(char *out, char* relPath, size_t outLen)
+{
+  char fullPath[MAX_PATH] = {0};
+  GetFullPathNameA(relPath, MAX_PATH, fullPath, 0);
+  if(strlen(fullPath) > outLen)
+  {
+    out = 0;
+    return false;
+  }
+  strcpy(out, fullPath);
+
+  return true;
 }
 
 void clearScreen(Screen &screen)
@@ -142,9 +225,226 @@ void clearScreen(Screen &screen)
   screen.rightView.cursorIndex = 0;
 }
 
+char **getSelection(int &amountOut)
+{
+  int bufSize = globalState.selection.bufSize;
+  char **selected = 0;
+  if(!(selected = (char **)calloc(bufSize, sizeof(char *))))
+  {
+    printf("calloc failed to allocate array of strings for selected entries\n");
+    return 0;
+  }
+  for(int i = 0; i < globalState.selection.bufSize; i++)
+  {
+    if(!(selected[i] = (char *)calloc(MAX_PATH, sizeof(char))))
+    {
+      printf("calloc failed to allocate string for selected entry array selected[i]\n");
+      for(int j = i-1; j >= 0; j--)
+      {
+        free(selected[j]); // TODO do this kind of freeing in other places.
+      }
+      free(selected);
+      return 0;
+    }
+  }
+
+  int idx = 0;
+
+  for(int i = 0; i < globalState.selection.bufSize; i++)
+  {
+    if(globalState.selection.entryMap[i][0][0])
+    {
+      for(int j = 0; j < globalState.selection.dupeSize; j++)
+      {
+        if(!globalState.selection.entryMap[i][j][0])
+        {
+          break;
+        }
+        if(idx >= bufSize)
+        {
+          bufSize *= 2;
+          char **tmpPtr = (char **)realloc(selected, bufSize);
+          if(!tmpPtr)
+          {
+            printf("realloc failed to allocate array of strings for selected entries\n");
+            errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+            return 0;
+          }
+          else 
+          {
+            for(int k = idx; k < globalState.selection.bufSize; k++)
+            {
+              if(!(selected[k] = (char *)calloc(MAX_PATH, sizeof(char))))
+              {
+                printf("realloc, then calloc failed to allocate string for selected entry array selected[i]\n");
+                for(int h = k-1; h >= 0; h--)
+                {
+                  free(selected[h]); // TODO do this kind of freeing in other places.
+                }
+                free(selected);
+                return 0;
+              }
+            }
+          }
+        }
+
+        strcpy(selected[idx++], globalState.selection.entryMap[i][j]);
+      }
+    }
+  }
+
+  amountOut = idx;
+  return selected;
+}
+
+bool moveSelection()
+{
+  int nSelected = 0;
+  char **selection = getSelection(nSelected);
+
+  char currentDir[MAX_PATH] = {0};
+  if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
+  {
+    printf("GetCurrentDirectory failed (%lu)\n", GetLastError());
+    return false;
+  }
+
+  for(int i = 0; i < nSelected; i++)
+  {
+    DWORD fileAttribs = GetFileAttributesA(selection[i]);
+    if(!fileAttribs)
+    {
+      printf("GetFileAttributesA failed (%lu)\n", GetLastError());
+      continue;
+    }
+
+    char *filename = PathFindFileNameA(selection[i]);
+    char destination[MAX_PATH] = {0};
+    strcpy(destination, currentDir);
+    strcat(destination, "\\");
+    strcat(destination, filename);
+
+    if(!MoveFileA(selection[i], destination))
+    {
+      printf("MoveFileA failed (%lu)\n", GetLastError());
+      return false;
+    }
+  }
+
+  freeSelection(selection, nSelected);
+
+  return true;
+}
+
+void freeSelection(char **selection, int amount)
+{
+  for(int i = 0; i < amount; i++)
+  {
+    free(selection[i]);
+  }
+
+  free(selection);
+  selection = 0;
+}
+
+bool removeEntryFromSelection(char *path)
+{
+  if(!isEntryInSelection(path))
+  {
+    printf("Entry not in selection\n");
+    return false;
+  }
+
+  int hashIndex = hash(path, strlen(path)) % globalState.selection.bufSize;
+
+  for(int i = 0; i < globalState.selection.dupeSize; i++)
+  {
+    if(!strcmp(path, globalState.selection.entryMap[hashIndex][i]))
+    {
+      int lastDupe = 0;
+      for(int j = i+1; j < globalState.selection.dupeSize; j++)
+      {
+        if(!globalState.selection.entryMap[hashIndex][j][0])
+        {
+          lastDupe = j-1;
+          break;
+        }
+      }
+      if(lastDupe != i)
+      {
+        int j = i;
+        int k = i+1;
+        for(; k < lastDupe-1; j++, k++)
+        {
+          strcpy(globalState.selection.entryMap[hashIndex][j], globalState.selection.entryMap[hashIndex][k]);
+        }
+        globalState.selection.entryMap[hashIndex][k][0] = '\0';
+      }
+      else 
+      {
+        globalState.selection.entryMap[hashIndex][i][0] = '\0';
+
+        if(i == 0)
+        {
+          globalState.selection.nSet--;
+        }
+      }
+
+      return true;
+    }
+  }
+
+  printf("Something went horribly wrong\n");
+  return false;
+}
+
+bool clearAllSelection()
+{
+  int nSelected = 0;
+  char **selection = getSelection(nSelected);
+
+  if(!selection)
+  {
+    printf("Failed to retrieve selection\n");
+    return false;
+  }
+
+  for(int i = 0; i < nSelected; i++)
+  {
+    if(!removeEntryFromSelection(selection[i]))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void printSelection()
+{
+  int nSelected = 0;
+  char **selection = getSelection(nSelected);
+  if(!selection)
+  {
+    printf("No selection\n");
+    return;
+  }
+
+  printf("\nSelected:\n");
+  char prefix[3] = {0};
+  for(int i = 0; i < nSelected; i++)
+  {
+    printf("%s%s", prefix, selection[i]);
+    prefix[0] = ',';
+    prefix[1] = '\n';
+  }
+  printf("\n");
+
+  freeSelection(selection, nSelected);
+}
 void handleInput(Screen &screen, HANDLE stdinHandle)
 {
-  INPUT_RECORD inputBuffer[3] = {0};
+  INPUT_RECORD inputBuffer[INPUTBUF_SIZE] = {0};
   DWORD nRecordsRead = 0;
   if(!ReadConsoleInput(
     stdinHandle, inputBuffer, 3, &nRecordsRead))
@@ -162,6 +462,7 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
       {
         if(!inputBuffer[i].Event.KeyEvent.bKeyDown)
         {
+          globalState.input.prevKeyCode = -1;
           break;
         }
         switch(inputBuffer[i].Event.KeyEvent.wVirtualKeyCode)
@@ -172,10 +473,12 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
             globalState.quit = true;
             return;
           } break;
+          case(VK_DOWN):
           case(VK_J):
           {
             incrementScreenCursorIndex(screen);
           } break;
+          case(VK_UP):
           case(VK_K):
           {
             decrementScreenCursorIndex(screen);
@@ -190,7 +493,13 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
             {
               screen.active = &screen.leftView;
             }
+            if(!SetCurrentDirectory(screen.active->path))
+            {
+              printf("Failed to set current directory (%lu)\n", GetLastError());
+            }
           } break;
+          case(VK_RETURN):
+          case(VK_RIGHT):
           case(VK_L):
           {
             printf("activeEntry.dwFileAttributes: %lu\n", activeEntry.dwFileAttributes);
@@ -208,7 +517,11 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
             else
             {
               char fullPath[MAX_PATH] = {0};
-              GetFullPathNameA(activeEntry.cFileName, MAX_PATH, fullPath, 0);
+              if(!getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
+              {
+                printf("fullPath failed (%lu)\n", GetLastError());
+                break;
+              }
               printf("fullPath: %s\n", fullPath);
               DWORD binaryType = -1;
               // TODO: Error handling for file opening
@@ -269,19 +582,165 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
               }
             }
           } break;
+          case(VK_BACK):
+          case(VK_LEFT):
           case(VK_H):
           {
-              clearScreen(*globalState.currentScreen);
-              setViewPathRelative(*screen.active, "..");
-              if(!SetCurrentDirectory(screen.active->path))
+            clearScreen(*globalState.currentScreen);
+            setViewPathRelative(*screen.active, "..");
+            if(!SetCurrentDirectory(screen.active->path))
+            {
+              printf("Failed to set current directory (%lu)\n", GetLastError());
+            }
+          } break;
+          case(VK_SPACE):
+          {
+            if(inputBuffer[i].Event.KeyEvent.dwControlKeyState == SHIFT_PRESSED)
+            {
+              clearAllSelection();
+              break;
+            }
+            if(inputNoKeyRepeat(inputBuffer, i, INPUTBUF_SIZE))
+            {
+              char fullPath[MAX_PATH] = {0};
+              if(!getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
               {
-                printf("Failed to set current directory (%lu)\n", GetLastError());
+                printf("getFullPath failed (%lu)\n", GetLastError());
+                break;
               }
+              if(isEntryInSelection(fullPath))
+              {
+                removeEntryFromSelection(fullPath);
+              }
+              else 
+              {
+                int ret = selectEntry(fullPath);
+                if(ret == DIRT_ERROR_ALLOCATION_FAILURE)
+                {
+                  printf("selectEntry failed with error DIRT_SEL_ALLOCATION_FAILURE (0x1)\n");
+                  break;
+                }
+                if(ret == DIRT_ERROR_INVALID_ENTRY)
+                {
+                  printf("selectEntry failed with error DIRT_SEL_INVALID_ENTRY (0x2), for path: %s\n", fullPath);
+                  break;
+                }
+              }
+            }
+          } break;
+          case(VK_M):
+          {
+            moveSelection();
+            clearAllSelection();
           } break;
         }
+
+        globalState.input.prevKeyCode = inputBuffer[i].Event.KeyEvent.wVirtualKeyCode;
       } break;
     }
   }
+}
+
+bool inputNoKeyRepeat(INPUT_RECORD *inputBuffer, uint32_t index, uint32_t size)
+{
+  WORD keyCode = inputBuffer[index].Event.KeyEvent.wVirtualKeyCode;
+
+  if(keyCode == globalState.input.prevKeyCode)
+  {
+    return false;
+  }
+
+  return true;
+}
+
+// djb2 hash function
+uint32_t hash(char *str, uint32_t len)
+{
+  uint32_t hash = 5381;
+  for(uint32_t i = 0; i < len; i++)
+  {
+    hash = ((hash << 5) + hash) + str[i];
+  }
+
+  return hash;
+}
+
+bool selectEntry(char *entryFullPath)
+{
+  DWORD entryAttributes = GetFileAttributesA(entryFullPath);
+  if(entryAttributes == INVALID_FILE_ATTRIBUTES && GetLastError() != ERROR_SHARING_VIOLATION)
+  {
+    printf("GetFileAttributesA failed (%lu)\n", GetLastError());
+    errorCode = DIRT_ERROR_INVALID_ENTRY;
+    return false;
+  }
+
+  uint32_t hashIndex = 
+    hash(entryFullPath, strlen(entryFullPath)) % globalState.selection.bufSize;
+
+  if(globalState.selection.nSet >= globalState.selection.bufSize)
+  {
+    globalState.selection.bufSize *= 2;
+    char ***tmpPtr = (char ***)realloc(globalState.selection.entryMap, globalState.selection.bufSize);
+    if(!tmpPtr)
+    {
+      printf("Failed to realloc more space for globalState.selection.entryMap\n");
+      errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+      return false;
+    }
+    else 
+    {
+      globalState.selection.entryMap = tmpPtr;
+    }
+  }
+  bool foundFreeSpot = false;
+  int i;
+  for(i = 0; i < globalState.selection.dupeSize; i++)
+  {
+    if((foundFreeSpot = (globalState.selection.entryMap[hashIndex][i][0] == '\0')))
+    {
+      break;
+    }
+  }
+
+  if(!foundFreeSpot)
+  {
+    globalState.selection.dupeSize *= 2;
+    char **tmpPtr = (char **)realloc(globalState.selection.entryMap[hashIndex], globalState.selection.dupeSize);
+    if(!tmpPtr)
+    {
+      printf("Failed to realloc globalState.selection.entryMap[i]\n");
+      errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+      return false;
+    }
+    else 
+    {
+      globalState.selection.entryMap[hashIndex] = tmpPtr;
+      for(int j = i+1; j < globalState.selection.dupeSize; j++)
+      {
+        if(!(globalState.selection.entryMap[hashIndex][j] = (char *)calloc(MAX_PATH, sizeof(char))))
+        {
+          printf("Failed to allocate string buffer for new dupe slot\n");
+          errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+          return false;
+        }
+      }
+
+      strcpy(globalState.selection.entryMap[hashIndex][i+1], entryFullPath);
+    }
+  }
+  else 
+  {
+    strcpy(globalState.selection.entryMap[hashIndex][i], entryFullPath);
+    if(i == 0)
+    {
+      globalState.selection.nSet++;
+    }
+  }
+
+  printf("\"%s\" hashIndex: %d\n", entryFullPath, hashIndex);
+
+  return true;
 }
 
 void setViewPathRelative(DirectoryView &view, const char *relPath)
@@ -327,7 +786,13 @@ void decrementScreenCursorIndex(Screen &screen)
 
 bool initScreenDirectoryViews(Screen &screen)
 {
-  strcpy(screen.leftView.path, "C:\\");
+  char currentDir[MAX_PATH] = {0};
+  if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
+  {
+    printf("initScreenDirectoryViews:GetCurrentDirectory failed (%lu)\n", GetLastError());
+    return false;
+  }
+  strcpy(screen.leftView.path, currentDir);
   screen.leftView.renderRect.Top = 0;
   screen.leftView.renderRect.Left = 0;
   screen.leftView.renderRect.Bottom = 80;
@@ -341,7 +806,7 @@ bool initScreenDirectoryViews(Screen &screen)
     return false;
   }
 
-  strcpy(screen.rightView.path, "D:\\");
+  strcpy(screen.rightView.path, "C:\\");
   screen.rightView.renderRect.Top = 0;
   screen.rightView.renderRect.Left = 42;
   screen.rightView.renderRect.Bottom = 80;
@@ -414,7 +879,9 @@ void styleView(HANDLE screenBuffer, DirectoryView view)
 {
   for(int i = 0; i < view.nEntries; i++)
   {
-    WORD attributes = view.entries[i].dwFileAttributes;
+    WIN32_FIND_DATA entry = view.entries[i];
+
+    WORD attributes = entry.dwFileAttributes;
     
     COORD coords;
     coords.X = view.renderRect.Left;
@@ -424,14 +891,64 @@ void styleView(HANDLE screenBuffer, DirectoryView view)
 
     if(attributes & FILE_ATTRIBUTE_DIRECTORY)
     {
+    FillConsoleOutputAttribute(
+        screenBuffer,
+        FOREGROUND_RED | FOREGROUND_GREEN,
+        filenameLength+1,
+        coords,
+        &nSet);
+    }
+
+    char currentDir[MAX_PATH] = {0};
+    GetCurrentDirectoryA(MAX_PATH, currentDir);
+    if(!SetCurrentDirectory(view.path))
+    {
+      printf("Failed to set current directory (%lu)\n", GetLastError());
+      return;
+    }
+    char fullPath[MAX_PATH] = {0};
+    getFullPath(fullPath, entry.cFileName, MAX_PATH);
+
+    if(isEntryInSelection(fullPath))
+    {
       FillConsoleOutputAttribute(
           screenBuffer,
-          FOREGROUND_RED | FOREGROUND_GREEN,
-          filenameLength+1,
+          FOREGROUND_GREEN,
+          filenameLength,
           coords,
           &nSet);
     }
+    if(!SetCurrentDirectory(currentDir))
+    {
+      printf("Failed to set current directory (%lu)\n", GetLastError());
+      return;
+    }
   }
+}
+
+bool isEntryInSelection(char *path)
+{
+  char fullPath[MAX_PATH] = {0};
+  if(!getFullPath(fullPath, path, MAX_PATH))
+  {
+    printf("getFullPath failed\n");
+    errorCode = DIRT_ERROR_GETFULLPATH;
+    return false;
+  }
+
+  uint32_t hashId = hash(fullPath, strlen(fullPath)) % globalState.selection.bufSize;
+  if(globalState.selection.entryMap[hashId][0][0])
+  {
+    for(int i = 0; i < globalState.selection.dupeSize; i++)
+    {
+      if(!strcmp(globalState.selection.entryMap[hashId][i], fullPath))
+      {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 void highlightLine(Screen &screen)
@@ -443,9 +960,19 @@ void highlightLine(Screen &screen)
   DWORD nSet = 0;
   coords.X = screen.active->renderRect.Left;
   coords.Y = screen.active->cursorIndex;
+  WORD attribs = BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
+
+  char fullPath[MAX_PATH] = {0};
+  getFullPath(fullPath, screen.active->entries[screen.active->cursorIndex].cFileName, MAX_PATH);
+
+  if(isEntryInSelection(fullPath))
+  {
+    attribs ^= FOREGROUND_RED | FOREGROUND_BLUE;
+  }
+
   FillConsoleOutputAttribute(
     screen.backBuffer,
-    BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN,
+    attribs,
     screen.active->width,
     coords,
     &nSet);
@@ -542,7 +1069,16 @@ WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
         break;
       }
       globalState.maxEntriesInView *= 2;
-      realloc(entries, globalState.maxEntriesInView);
+      WIN32_FIND_DATA *tmpPtr = (WIN32_FIND_DATA *)realloc(entries, globalState.maxEntriesInView);
+      if(!tmpPtr)
+      {
+        printf("Failed to realloc entries in findDirectoryEntries\n");
+        return 0;
+      }
+      else 
+      {
+        entries = tmpPtr;
+      }
     }
   }
 
