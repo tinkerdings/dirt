@@ -5,15 +5,15 @@ dir(ectory) t(amer)
 **WARNING**: Dirt is still a work in progress, not ready for release.\
 Use at your own risk, as certain features might not work as intended yet.
 
-## Images
-![Dirt screenshot.](./data/screenshot00.png)
-
 Dirt is a simple and small teminal based file manager\
 for windows, with no dependencies.\
 Support for other platforms, may happen in the distant future.\
 It provides a split view of two directory listings\
 that you can easily navigate with the keyboard,\
 and lets you operate on both directories and the entries within.
+
+## Images
+![Dirt screenshot.](./data/screenshot00.png)
 
 ## Installation
 **To install dirt:**
