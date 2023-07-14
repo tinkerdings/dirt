@@ -144,8 +144,6 @@ int main(int argc, char **argv)
     handleInput(*globalState.currentScreen, stdinHandle);
   }
 
-  printSelection();
-
   for(uint32_t i = 0; i < globalState.selection.bufSize; i++)
   {
     free(globalState.selection.entryMap[i]);
@@ -320,10 +318,45 @@ bool deleteSelection()
       continue;
     }
 
-    if(!DeleteFileA(selection[i]))
+    if(fileAttribs & FILE_ATTRIBUTE_DIRECTORY)
     {
-      printf("MoveFileA failed (%lu)\n", GetLastError());
-      return false;
+      SHFILEOPSTRUCT fileOperation =
+      {
+        0,
+        FO_DELETE,
+        selection[i],
+        0,
+        FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT,
+        false,
+        0,
+        0
+      };
+      if(SHFileOperation(&fileOperation))
+      {
+        printf("SHFileOperation failed (%lu)\n", GetLastError());
+        return false;
+      }
+    }
+    else
+    {
+      if(!DeleteFileA(selection[i]))
+      {
+        if(fileAttribs & FILE_ATTRIBUTE_READONLY)
+        {
+          if(!SetFileAttributesA(selection[i], FILE_ATTRIBUTE_NORMAL))
+          {
+            printf("SetFileAttributesA failed (%lu)\n", GetLastError());
+            return false;
+          }
+          if(!DeleteFileA(selection[i]))
+          {
+            printf("A DeleteFileA failed (%lu)\n", GetLastError());
+            return false;
+          }
+        }
+        printf("B DeleteFileA failed (%lu)\n", GetLastError());
+        return false;
+      }
     }
   }
 
@@ -537,10 +570,8 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
           case(VK_RIGHT):
           case(VK_L):
           {
-            printf("activeEntry.dwFileAttributes: %lu\n", activeEntry.dwFileAttributes);
             if(activeEntry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             {
-              printf("-> directory\n");
               clearScreen(*globalState.currentScreen);
               setViewPathRelative(*screen.active, activeEntry.cFileName);
 
@@ -777,8 +808,6 @@ bool selectEntry(char *entryFullPath)
       globalState.selection.nSet++;
     }
   }
-
-  printf("\"%s\" hashIndex: %d\n", entryFullPath, hashIndex);
 
   return true;
 }
