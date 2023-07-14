@@ -5,6 +5,9 @@ dir(ectory) t(amer)
 **WARNING**: Dirt is still a work in progress, not ready for release.\
 Use at your own risk, as certain features might not work as intended yet.
 
+## Images
+![Dirt screenshot.](./data/screenshot00.png)
+
 Dirt is a simple and small teminal based file manager\
 for windows, with no dependencies.\
 Support for other platforms, may happen in the distant future.\
@@ -53,6 +56,7 @@ variables so you can run dirt from anywhere using the command prompt.
 |**J** or **Down-Arrow**|navigate down one entry|
 |**K** or **Up-Arrow**|navigate up one entry|
 |**L** or **Right-Arrow** or **Return**|jump into highlighted directory, or open highlighted file|
+|**TAB**|switch to other pane|
 |**Space**|select/deselect highlighted entry|
 |**Shift+Space**|deselect all selected entries|
 |**D**|delete selected entries|
