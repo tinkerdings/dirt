@@ -16,8 +16,8 @@ that you can easily navigate with the keyboard,\
 and lets you operate on both directories and the entries within.
 
 ## Installation
-**To install dirt:**\
-1. Clone this repo, ie.\ 
+**To install dirt:**
+1. Clone this repo, ie. 
 ```
 cd C:/path/to/desired/location
 git clone https://github.com/compieler/dirt
