@@ -7,6 +7,8 @@
 #include <winnt.h>
 #include <winuser.h>
 
+#include "hashMap.h"
+
 #define DIRT_ERROR_GETFULLPATH 0xAA
 #define DIRT_ERROR_ALLOCATION_FAILURE 0x2
 #define DIRT_ERROR_INVALID_ENTRY 0x4
@@ -48,22 +50,13 @@ struct Input
   WORD prevKeyCode = -1;
 };
 
-struct HashMap
-{
-  size_t objectSize = 0;
-  size_t nObjects = 0;
-  size_t nDupes = 0;
-  uint32_t nSet = 0;
-  uint8_t ***map = 0;
-};
-
 struct GlobalState
 {
   Screen *currentScreen = 0;
   bool quit = false;
   size_t maxEntriesInView = 128;
-  HashMap selection;
-  HashMap DirCursorIndices;
+  Dirt::Structures::HashMap selection;
+  Dirt::Structures::HashMap DirCursorIndices;
   Input input;
 } globalState;
 
@@ -85,18 +78,12 @@ void clearScreen(Screen &screen);
 bool getFullPath(char *out, char* relPath, size_t outLen);
 bool removeEntryFromSelection(char *path);
 bool inputNoKeyRepeat(INPUT_RECORD *inputBuffer, uint32_t index, uint32_t size);
-uint32_t hash(char *str, uint32_t len);
-bool hashMapAdd(HashMap *map, char *entry);
-bool isPathInHashMap(char *path);
 char **getSelection(int &amountOut);
 void freeSelection(char **selection, int amount);
 void printSelection();
 bool moveSelection();
 bool deleteSelection();
 bool clearAllSelection();
-bool initHashMap(HashMap *hashMap, size_t nObjects, size_t nDupes, size_t objectSize);
-bool resizeHashMap(HashMap *map, size_t nObjects, size_t nDupes);
-bool isPathInHashMap(HashMap *map, char *path);
 
 int main(int argc, char **argv)
 {
@@ -148,10 +135,10 @@ int main(int argc, char **argv)
     handleInput(*globalState.currentScreen, stdinHandle);
   }
 
-  for(uint32_t i = 0; i < globalState.selection.nObjects; i++)
-  {
-    free(globalState.selection.map[i]);
-  }
+  /* for(uint32_t i = 0; i < globalState.selection.nObjects; i++) */
+  /* { */
+  /*   free(globalState.selection.map[i]); */
+  /* } */
   free(globalState.selection.map);
   free(firstScreen.leftView.entries);
   free(firstScreen.rightView.entries);
@@ -159,36 +146,6 @@ int main(int argc, char **argv)
   return 0;
 }
 
-bool initHashMap(HashMap *hashMap, size_t nObjects, size_t nDupes, size_t objectSize)
-{
-  if(!(hashMap->map = (uint8_t ***)calloc(nObjects, sizeof(uint8_t **))))
-  {
-    printf("Failed to allocate buffer for hashmap\n");
-    return false;
-  }
-  for(int i = 0; i < nObjects; i++)
-  {
-    if(!(hashMap->map[i] = (uint8_t **)calloc(nDupes, sizeof(uint8_t *))))
-    {
-      printf("Failed to allocate dupe slots for hashmap\n");
-      return false;
-    }
-    for(int j = 0; j < nDupes; j++)
-    {
-      if(!(hashMap->map[i][j] = (uint8_t *)calloc(objectSize, sizeof(uint8_t))))
-      {
-        printf("Failed to allocate string for hashmap\n");
-        return false;
-      }
-    }
-  }
-
-  hashMap->nSet = 0;
-  hashMap->nObjects = nObjects;
-  hashMap->nDupes = nDupes;
-
-  return true;
-}
 
 bool getFullPath(char *out, char* relPath, size_t outLen)
 {
@@ -285,11 +242,11 @@ char **getSelection(int &amountOut)
 
   for(int i = 0; i < globalState.selection.nObjects; i++)
   {
-    if(globalState.selection.map[i][0][0])
+    if(globalState.selection.map[i][0].isSet)
     {
       for(int j = 0; j < globalState.selection.nDupes; j++)
       {
-        if(!globalState.selection.map[i][j][0])
+        if(!globalState.selection.map[i][j].isSet)
         {
           break;
         }
@@ -321,7 +278,7 @@ char **getSelection(int &amountOut)
           }
         }
 
-        strcpy(selected[idx++], (char *)globalState.selection.map[i][j]);
+        strcpy(selected[idx++], (char *)globalState.selection.map[i][j].data);
       }
     }
   }
@@ -448,56 +405,6 @@ void freeSelection(char **selection, int amount)
   selection = 0;
 }
 
-bool hashMapRemove(HashMap *map, char *entry)
-{
-  if(!isPathInHashMap(map, entry))
-  {
-    printf("Entry not in selection\n");
-    return false;
-  }
-
-  int hashIndex = hash(entry, strlen(entry)) % map->nObjects;
-
-  for(int i = 0; i < map->nDupes; i++)
-  {
-    if(!strcmp(entry, (char *)map->map[hashIndex][i]))
-    {
-      int lastDupe = 0;
-      for(int j = i+1; j < map->nDupes; j++)
-      {
-        if(!map->map[hashIndex][j][0])
-        {
-          lastDupe = j-1;
-          break;
-        }
-      }
-      if(lastDupe != i)
-      {
-        int j = i;
-        int k = i+1;
-        for(; k < lastDupe-1; j++, k++)
-        {
-          strcpy((char *)map->map[hashIndex][j], (char *)map->map[hashIndex][k]);
-        }
-        map->map[hashIndex][k][0] = '\0';
-      }
-      else 
-      {
-        map->map[hashIndex][i][0] = '\0';
-
-        if(i == 0)
-        {
-          map->nSet--;
-        }
-      }
-
-      return true;
-    }
-  }
-
-  printf("Something went horribly wrong\n");
-  return false;
-}
 
 bool removeEntryFromSelection(char *path)
 {
@@ -507,7 +414,7 @@ bool removeEntryFromSelection(char *path)
     return false;
   }
 
-  int hashIndex = hash(path, strlen(path)) % globalState.selection.nObjects;
+  size_t hashIndex = hash(path, strlen(path)) % globalState.selection.nObjects;
 
   for(int i = 0; i < globalState.selection.nDupes; i++)
   {
@@ -808,133 +715,6 @@ bool inputNoKeyRepeat(INPUT_RECORD *inputBuffer, uint32_t index, uint32_t size)
   return true;
 }
 
-// djb2 hash function
-uint32_t hash(char *str, uint32_t len)
-{
-  uint32_t hash = 5381;
-  for(uint32_t i = 0; i < len; i++)
-  {
-    hash = ((hash << 5) + hash) + str[i];
-  }
-
-  return hash;
-}
-
-bool resizeHashMap(HashMap *map, size_t nObjects, size_t nDupes)
-{
-  if(nObjects != map->nObjects)
-  {
-    uint8_t ***tmpPtr = (uint8_t ***)realloc(map->map, nObjects);
-    if(!tmpPtr)
-    {
-      printf("realloc failed on resizeHashMap for map->map\n");
-      errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
-      return false;
-    }
-    map->map = tmpPtr;
-    map->nObjects = nObjects;
-  }
-
-  size_t nObjectsOld = map->nObjects;
-
-  for(size_t i = nObjectsOld; i < nObjects; i++)
-  {
-    if(!(map->map[i] = (uint8_t **)malloc(nDupes * sizeof(uint8_t *))))
-    {
-      errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
-      return false;
-    }
-
-    for(size_t j = 0; j < nDupes; j++)
-    {
-      if(!(map->map[i][j] = (uint8_t *)calloc(map->objectSize, sizeof(uint8_t))))
-      {
-        printf("calloc failed on resizeHashMap for map->map[nObjectsOld+i][j]\n");
-        return false;
-      }
-    }
-  }
-
-  if(nDupes != map->nDupes)
-  {
-    for(size_t i = 0; i < nObjectsOld; i++)
-    {
-      uint8_t **tmpPtr = (uint8_t **)realloc(map->map[i], nDupes);
-      if(!tmpPtr)
-      {
-        printf("realloc failed on resizeHashMap for map->map[0+i]\n");
-        errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
-      }
-      for(size_t j = map->nDupes; j < nDupes; j++)
-      {
-        if(!(map->map[i][j] = (uint8_t *)calloc(map->objectSize, sizeof(uint8_t))))
-        {
-          printf("calloc failed on resizeHashMap for map->map[0+i][j]\n");
-          return false;
-        }
-      }
-      map->map[i] = tmpPtr;
-    }
-
-    map->nDupes = nDupes;
-  }
-
-  return true;
-}
-
-bool hashMapAdd(HashMap *map, char *entry)
-{
-  char entryFullPath[MAX_PATH] = {0};
-  if(!getFullPath(entryFullPath, entry, MAX_PATH))
-  {
-    printf("getFullPath failed in hashMapAdd\n");
-    errorCode = DIRT_ERROR_GETFULLPATH;
-    return false;
-  }
-
-  DWORD entryAttributes = GetFileAttributesA(entryFullPath);
-  if(entryAttributes == INVALID_FILE_ATTRIBUTES && GetLastError() != ERROR_SHARING_VIOLATION)
-  {
-    printf("GetFileAttributesA failed (%lu)\n", GetLastError());
-    errorCode = DIRT_ERROR_INVALID_ENTRY;
-    return false;
-  }
-
-  uint32_t hashIndex = 
-    hash(entryFullPath, strlen(entryFullPath)) % map->nObjects;
-
-  if(map->nSet >= map->nObjects)
-  {
-    resizeHashMap(&globalState.selection, map->nObjects*2, map->nDupes);
-  }
-
-  bool foundFreeSpot = false;
-  int i;
-  for(i = 0; i < map->nDupes; i++)
-  {
-    if((foundFreeSpot = (!map->map[hashIndex][i][0])))
-    {
-      break;
-    }
-  }
-
-  if(!foundFreeSpot)
-  {
-    resizeHashMap(&globalState.selection, map->nObjects, map->nDupes * 2);
-    strcpy((char *)map->map[hashIndex][i+1], entryFullPath);
-  }
-  else 
-  {
-    strcpy((char *)map->map[hashIndex][i], entryFullPath);
-    if(i == 0)
-    {
-      map->nSet++;
-    }
-  }
-
-  return true;
-}
-
 void setViewPathRelative(DirectoryView &view, const char *relPath)
 {
   if((strlen(view.path)+strlen(relPath)+2) > MAX_PATH)
@@ -1116,31 +896,6 @@ void styleView(HANDLE screenBuffer, DirectoryView view)
       return;
     }
   }
-}
-
-bool isPathInHashMap(HashMap *map, char *path)
-{
-  char fullPath[MAX_PATH] = {0};
-  if(!getFullPath(fullPath, path, MAX_PATH))
-  {
-    printf("getFullPath failed\n");
-    errorCode = DIRT_ERROR_GETFULLPATH;
-    return false;
-  }
-
-  uint32_t hashId = hash(fullPath, strlen(fullPath)) % map->nObjects;
-  if(map->map[hashId][0][0])
-  {
-    for(int i = 0; i < map->nDupes; i++)
-    {
-      if(!strcmp((char *)map->map[hashId][i], fullPath))
-      {
-        return true;
-      }
-    }
-  }
-
-  return false;
 }
 
 void highlightLine(Screen &screen)
