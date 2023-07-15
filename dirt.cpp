@@ -46,13 +46,13 @@ struct Input
   WORD prevKeyCode = -1;
 };
 
-struct SelectionBuffer
+struct HashMap
 {
-  char ***entryMap = 0;
-  uint32_t index = 0;
-  size_t bufSize = DIRT_SELECTIONBUF_MIN_SIZE;
-  size_t dupeSize = DIRT_SELECTIONBUF_MIN_DUPES;
+  size_t objectSize = 0;
+  size_t nObjects = 0;
+  size_t nDupes = 0;
   uint32_t nSet = 0;
+  uint8_t ***map = 0;
 };
 
 struct GlobalState
@@ -60,7 +60,8 @@ struct GlobalState
   Screen *currentScreen = 0;
   bool quit = false;
   size_t maxEntriesInView = 128;
-  SelectionBuffer selection;
+  HashMap selection;
+  HashMap DirCursorIndices;
   Input input;
 } globalState;
 
@@ -91,6 +92,8 @@ void printSelection();
 bool moveSelection();
 bool deleteSelection();
 bool clearAllSelection();
+bool initHashMap(HashMap *hashMap, size_t nObjects, size_t nDupes, size_t objectSize);
+bool resizeHashMap(HashMap *map, size_t nObjects, size_t nDupes);
 
 int main(int argc, char **argv)
 {
@@ -102,28 +105,16 @@ int main(int argc, char **argv)
     return 1;
   }
   globalState.currentScreen = &firstScreen;
-  if(!(globalState.selection.entryMap = (char ***)calloc(globalState.selection.bufSize, sizeof(char **))))
+
+  if(!initHashMap(
+    &globalState.selection,
+    DIRT_SELECTIONBUF_MIN_SIZE,
+    DIRT_SELECTIONBUF_MIN_DUPES,
+    MAX_PATH))
   {
-    printf("Failed to allocate buffer for globalState.selected\n");
+    printf("Failed to init hashmap for entry selection\n");
     return 1;
   }
-  for(int i = 0; i < globalState.selection.bufSize; i++)
-  {
-    if(!(globalState.selection.entryMap[i] = (char **)calloc(DIRT_SELECTIONBUF_MIN_DUPES, sizeof(char *))))
-    {
-      printf("Failed to allocate dupe slots for globalState.selected.entries[i]\n");
-      return 1;
-    }
-    for(int j = 0; j < DIRT_SELECTIONBUF_MIN_DUPES; j++)
-    {
-      if(!(globalState.selection.entryMap[i][j] = (char *)calloc(MAX_PATH, sizeof(char))))
-      {
-        printf("Failed to allocate string for globalState.selected.entries[i][j]\n");
-        return 1;
-      }
-    }
-  }
-  globalState.selection.index = 0;
 
   initScreenDirectoryViews(firstScreen);
 
@@ -144,15 +135,46 @@ int main(int argc, char **argv)
     handleInput(*globalState.currentScreen, stdinHandle);
   }
 
-  for(uint32_t i = 0; i < globalState.selection.bufSize; i++)
+  for(uint32_t i = 0; i < globalState.selection.nObjects; i++)
   {
-    free(globalState.selection.entryMap[i]);
+    free(globalState.selection.map[i]);
   }
-  free(globalState.selection.entryMap);
+  free(globalState.selection.map);
   free(firstScreen.leftView.entries);
   free(firstScreen.rightView.entries);
 
   return 0;
+}
+
+bool initHashMap(HashMap *hashMap, size_t nObjects, size_t nDupes, size_t objectSize)
+{
+  if(!(hashMap->map = (uint8_t ***)calloc(nObjects, sizeof(uint8_t **))))
+  {
+    printf("Failed to allocate buffer for hashmap\n");
+    return false;
+  }
+  for(int i = 0; i < nObjects; i++)
+  {
+    if(!(hashMap->map[i] = (uint8_t **)calloc(nDupes, sizeof(uint8_t *))))
+    {
+      printf("Failed to allocate dupe slots for hashmap\n");
+      return false;
+    }
+    for(int j = 0; j < nDupes; j++)
+    {
+      if(!(hashMap->map[i][j] = (uint8_t *)calloc(objectSize, sizeof(uint8_t))))
+      {
+        printf("Failed to allocate string for hashmap\n");
+        return false;
+      }
+    }
+  }
+
+  hashMap->nSet = 0;
+  hashMap->nObjects = nObjects;
+  hashMap->nDupes = nDupes;
+
+  return true;
 }
 
 bool getFullPath(char *out, char* relPath, size_t outLen)
@@ -221,20 +243,18 @@ void clearScreen(Screen &screen)
       return;
     }
   }
-  screen.leftView.cursorIndex = 0;
-  screen.rightView.cursorIndex = 0;
 }
 
 char **getSelection(int &amountOut)
 {
-  int bufSize = globalState.selection.bufSize;
+  int bufSize = globalState.selection.nObjects;
   char **selected = 0;
   if(!(selected = (char **)calloc(bufSize, sizeof(char *))))
   {
     printf("calloc failed to allocate array of strings for selected entries\n");
     return 0;
   }
-  for(int i = 0; i < globalState.selection.bufSize; i++)
+  for(int i = 0; i < globalState.selection.nObjects; i++)
   {
     if(!(selected[i] = (char *)calloc(MAX_PATH, sizeof(char))))
     {
@@ -250,13 +270,13 @@ char **getSelection(int &amountOut)
 
   int idx = 0;
 
-  for(int i = 0; i < globalState.selection.bufSize; i++)
+  for(int i = 0; i < globalState.selection.nObjects; i++)
   {
-    if(globalState.selection.entryMap[i][0][0])
+    if(globalState.selection.map[i][0][0])
     {
-      for(int j = 0; j < globalState.selection.dupeSize; j++)
+      for(int j = 0; j < globalState.selection.nDupes; j++)
       {
-        if(!globalState.selection.entryMap[i][j][0])
+        if(!globalState.selection.map[i][j][0])
         {
           break;
         }
@@ -272,7 +292,7 @@ char **getSelection(int &amountOut)
           }
           else 
           {
-            for(int k = idx; k < globalState.selection.bufSize; k++)
+            for(int k = idx; k < globalState.selection.nObjects; k++)
             {
               if(!(selected[k] = (char *)calloc(MAX_PATH, sizeof(char))))
               {
@@ -288,7 +308,7 @@ char **getSelection(int &amountOut)
           }
         }
 
-        strcpy(selected[idx++], globalState.selection.entryMap[i][j]);
+        strcpy(selected[idx++], (char *)globalState.selection.map[i][j]);
       }
     }
   }
@@ -423,16 +443,16 @@ bool removeEntryFromSelection(char *path)
     return false;
   }
 
-  int hashIndex = hash(path, strlen(path)) % globalState.selection.bufSize;
+  int hashIndex = hash(path, strlen(path)) % globalState.selection.nObjects;
 
-  for(int i = 0; i < globalState.selection.dupeSize; i++)
+  for(int i = 0; i < globalState.selection.nDupes; i++)
   {
-    if(!strcmp(path, globalState.selection.entryMap[hashIndex][i]))
+    if(!strcmp(path, (char *)globalState.selection.map[hashIndex][i]))
     {
       int lastDupe = 0;
-      for(int j = i+1; j < globalState.selection.dupeSize; j++)
+      for(int j = i+1; j < globalState.selection.nDupes; j++)
       {
-        if(!globalState.selection.entryMap[hashIndex][j][0])
+        if(!globalState.selection.map[hashIndex][j][0])
         {
           lastDupe = j-1;
           break;
@@ -444,13 +464,13 @@ bool removeEntryFromSelection(char *path)
         int k = i+1;
         for(; k < lastDupe-1; j++, k++)
         {
-          strcpy(globalState.selection.entryMap[hashIndex][j], globalState.selection.entryMap[hashIndex][k]);
+          strcpy((char *)globalState.selection.map[hashIndex][j], (char *)globalState.selection.map[hashIndex][k]);
         }
-        globalState.selection.entryMap[hashIndex][k][0] = '\0';
+        globalState.selection.map[hashIndex][k][0] = '\0';
       }
       else 
       {
-        globalState.selection.entryMap[hashIndex][i][0] = '\0';
+        globalState.selection.map[hashIndex][i][0] = '\0';
 
         if(i == 0)
         {
@@ -736,6 +756,68 @@ uint32_t hash(char *str, uint32_t len)
   return hash;
 }
 
+bool resizeHashMap(HashMap *map, size_t nObjects, size_t nDupes)
+{
+  if(nObjects != map->nObjects)
+  {
+    uint8_t ***tmpPtr = (uint8_t ***)realloc(map->map, nObjects);
+    if(!tmpPtr)
+    {
+      printf("realloc failed on resizeHashMap for map->map\n");
+      errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+      return false;
+    }
+    map->map = tmpPtr;
+    map->nObjects = nObjects;
+  }
+
+  size_t nObjectsOld = map->nObjects;
+
+  for(size_t i = nObjectsOld; i < nObjects; i++)
+  {
+    if(!(map->map[i] = (uint8_t **)malloc(nDupes * sizeof(uint8_t *))))
+    {
+      errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+      return false;
+    }
+
+    for(size_t j = 0; j < nDupes; j++)
+    {
+      if(!(map->map[i][j] = (uint8_t *)calloc(map->objectSize, sizeof(uint8_t))))
+      {
+        printf("calloc failed on resizeHashMap for map->map[nObjectsOld+i][j]\n");
+        return false;
+      }
+    }
+  }
+
+  if(nDupes != map->nDupes)
+  {
+    for(size_t i = 0; i < nObjectsOld; i++)
+    {
+      uint8_t **tmpPtr = (uint8_t **)realloc(map->map[i], nDupes);
+      if(!tmpPtr)
+      {
+        printf("realloc failed on resizeHashMap for map->map[0+i]\n");
+        errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+      }
+      for(size_t j = map->nDupes; j < nDupes; j++)
+      {
+        if(!(map->map[i][j] = (uint8_t *)calloc(map->objectSize, sizeof(uint8_t))))
+        {
+          printf("calloc failed on resizeHashMap for map->map[0+i][j]\n");
+          return false;
+        }
+      }
+      map->map[i] = tmpPtr;
+    }
+
+    map->nDupes = nDupes;
+  }
+
+  return true;
+}
+
 bool selectEntry(char *entryFullPath)
 {
   DWORD entryAttributes = GetFileAttributesA(entryFullPath);
@@ -747,28 +829,18 @@ bool selectEntry(char *entryFullPath)
   }
 
   uint32_t hashIndex = 
-    hash(entryFullPath, strlen(entryFullPath)) % globalState.selection.bufSize;
+    hash(entryFullPath, strlen(entryFullPath)) % globalState.selection.nObjects;
 
-  if(globalState.selection.nSet >= globalState.selection.bufSize)
+  if(globalState.selection.nSet >= globalState.selection.nObjects)
   {
-    globalState.selection.bufSize *= 2;
-    char ***tmpPtr = (char ***)realloc(globalState.selection.entryMap, globalState.selection.bufSize);
-    if(!tmpPtr)
-    {
-      printf("Failed to realloc more space for globalState.selection.entryMap\n");
-      errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
-      return false;
-    }
-    else 
-    {
-      globalState.selection.entryMap = tmpPtr;
-    }
+    resizeHashMap(&globalState.selection, globalState.selection.nObjects*2, globalState.selection.nDupes);
   }
+
   bool foundFreeSpot = false;
   int i;
-  for(i = 0; i < globalState.selection.dupeSize; i++)
+  for(i = 0; i < globalState.selection.nDupes; i++)
   {
-    if((foundFreeSpot = (globalState.selection.entryMap[hashIndex][i][0] == '\0')))
+    if((foundFreeSpot = (!globalState.selection.map[hashIndex][i][0])))
     {
       break;
     }
@@ -776,33 +848,12 @@ bool selectEntry(char *entryFullPath)
 
   if(!foundFreeSpot)
   {
-    globalState.selection.dupeSize *= 2;
-    char **tmpPtr = (char **)realloc(globalState.selection.entryMap[hashIndex], globalState.selection.dupeSize);
-    if(!tmpPtr)
-    {
-      printf("Failed to realloc globalState.selection.entryMap[i]\n");
-      errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
-      return false;
-    }
-    else 
-    {
-      globalState.selection.entryMap[hashIndex] = tmpPtr;
-      for(int j = i+1; j < globalState.selection.dupeSize; j++)
-      {
-        if(!(globalState.selection.entryMap[hashIndex][j] = (char *)calloc(MAX_PATH, sizeof(char))))
-        {
-          printf("Failed to allocate string buffer for new dupe slot\n");
-          errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
-          return false;
-        }
-      }
-
-      strcpy(globalState.selection.entryMap[hashIndex][i+1], entryFullPath);
-    }
+    resizeHashMap(&globalState.selection, globalState.selection.nObjects, globalState.selection.nDupes * 2);
+    strcpy((char *)globalState.selection.map[hashIndex][i+1], entryFullPath);
   }
   else 
   {
-    strcpy(globalState.selection.entryMap[hashIndex][i], entryFullPath);
+    strcpy((char *)globalState.selection.map[hashIndex][i], entryFullPath);
     if(i == 0)
     {
       globalState.selection.nSet++;
@@ -1005,12 +1056,12 @@ bool isEntryInSelection(char *path)
     return false;
   }
 
-  uint32_t hashId = hash(fullPath, strlen(fullPath)) % globalState.selection.bufSize;
-  if(globalState.selection.entryMap[hashId][0][0])
+  uint32_t hashId = hash(fullPath, strlen(fullPath)) % globalState.selection.nObjects;
+  if(globalState.selection.map[hashId][0][0])
   {
-    for(int i = 0; i < globalState.selection.dupeSize; i++)
+    for(int i = 0; i < globalState.selection.nDupes; i++)
     {
-      if(!strcmp(globalState.selection.entryMap[hashId][i], fullPath))
+      if(!strcmp((char *)globalState.selection.map[hashId][i], fullPath))
       {
         return true;
       }
