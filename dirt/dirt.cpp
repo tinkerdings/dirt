@@ -135,11 +135,9 @@ int main(int argc, char **argv)
     handleInput(*globalState.currentScreen, stdinHandle);
   }
 
-  /* for(uint32_t i = 0; i < globalState.selection.nObjects; i++) */
-  /* { */
-  /*   free(globalState.selection.map[i]); */
-  /* } */
-  free(globalState.selection->map);
+  // This is super slow, maybe not a point to do this, since exit.
+  /* hashmapDestroy(globalState.selection); */
+  /* hashmapDestroy(globalState.dirCursorIndices); */
   free(firstScreen.leftView.entries);
   free(firstScreen.rightView.entries);
 
@@ -404,7 +402,6 @@ void freeSelection(char **selection, int amount)
   free(selection);
   selection = 0;
 }
-
 
 bool removeEntryFromSelection(char *path)
 {

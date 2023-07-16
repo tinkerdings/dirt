@@ -10,10 +10,10 @@ namespace Dirt
   namespace Structures
   {
     // djb2 hash function
-    size_t hash(uint8_t *bytes, size_t len)
+    size_t hash(uint8_t *bytes, size_t dataSize)
     {
-      uint32_t hash = 5381;
-      for(uint32_t i = 0; i < len; i++)
+      size_t hash = 5381;
+      for(size_t i = 0; i < dataSize; i++)
       {
         hash = ((hash << 5) + hash) + bytes[i];
       }
@@ -21,9 +21,30 @@ namespace Dirt
       return hash;
     }
 
-    size_t getHashIndex(Hashmap *map, uint8_t *data, size_t len)
+    size_t hashmapGetIndex(Hashmap *map, uint8_t *data, size_t dataSize)
     {
-      return hash(data, len) % map->nSlots;
+      return hash(data, dataSize) % map->nSlots;
+    }
+
+    size_t hashmapGetFreeDupeIndex(Hashmap *map, size_t hashIndex)
+    {
+      bool foundFree = false;
+      size_t freeSpot;
+      for(freeSpot = 0; freeSpot < map->nDupes; freeSpot++)
+      {
+        if(!map->map[hashIndex][freeSpot].isSet)
+        {
+          foundFree = true;
+          break;
+        }
+      }
+
+      if(!foundFree)
+      {
+        return -1;
+      }
+
+      return freeSpot;
     }
 
     Hashmap *hashmapCreate(size_t nSlots, size_t nDupes, size_t dataSize)
@@ -81,10 +102,24 @@ namespace Dirt
       return map;
     }
 
+    void hashmapDestroy(Hashmap *map)
+    {
+      for(size_t i = map->nSlots-1; i >= 0; i--)
+      {
+        for(size_t j = map->nDupes; j >= 0; j--)
+        {
+          free(map->map[i][j].data);
+        }
+        free(map->map[i]);
+      }
+      free(map);
+      map = 0;
+    }
+
     bool hashmapInsert(Hashmap *map, void *data, size_t size)
     {
       size_t hashIndex = 
-        getHashIndex(map, (uint8_t *)data, size);
+        hashmapGetIndex(map, (uint8_t *)data, size);
 
       if(map->nSet >= map->nSlots)
       {
@@ -219,7 +254,7 @@ namespace Dirt
 
     bool hashmapContains(Hashmap *map, void *data, size_t dataSize, size_t *hashIndex, size_t *dupeIndex)
     {
-      size_t idx = getHashIndex(map, (uint8_t *)data, dataSize);
+      size_t idx = hashmapGetIndex(map, (uint8_t *)data, dataSize);
       if(map->map[idx][0].isSet)
       {
         size_t i;
