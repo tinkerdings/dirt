@@ -118,9 +118,6 @@ int main(int argc, char **argv)
   }
 
   SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
-  char* preselected = "W:\\test\\b\\b - Copy (3).txt";
-  size_t len = strlen(preselected);
-  hashmapInsert(globalState.selection, preselected, len);
   while(!globalState.quit)
   {
     renderScreenDirectoryViews(*globalState.currentScreen);
@@ -527,7 +524,6 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
                 printf("fullPath failed (%lu)\n", GetLastError());
                 break;
               }
-              printf("fullPath: %s\n", fullPath);
               DWORD binaryType = -1;
               // TODO: Error handling for file opening
               if(GetBinaryTypeA(fullPath, &binaryType))
@@ -725,7 +721,7 @@ bool initScreenDirectoryViews(Screen &screen)
     return false;
   }
   screen.leftView.cursorMap = hashmapCreate(DIRT_CURSORINDICES_MIN_SIZE, DIRT_CURSORINDICES_MIN_DUPES, 1);
-  setViewPath(screen.leftView, "W:\\test\\b"); // TODO set this to currentDir, this is just for testing.
+  setViewPath(screen.leftView, currentDir); // TODO set this to currentDir, this is just for testing.
   screen.leftView.renderRect.Top = 0;
   screen.leftView.renderRect.Left = 0;
   screen.leftView.renderRect.Bottom = 80;
