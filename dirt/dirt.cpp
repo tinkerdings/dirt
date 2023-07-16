@@ -7,11 +7,9 @@
 #include <winnt.h>
 #include <winuser.h>
 
-#include "hashMap.h"
-
-#define DIRT_ERROR_GETFULLPATH 0xAA
-#define DIRT_ERROR_ALLOCATION_FAILURE 0x2
-#define DIRT_ERROR_INVALID_ENTRY 0x4
+#include <dirt/structures/hashmap.h>
+#include <dirt/error/errorCode.h>
+#include <dirt/memory/memory.h>
 
 #define DIRT_SELECTIONBUF_MIN_DUPES 10
 #define DIRT_SELECTIONBUF_MIN_SIZE 512
@@ -27,7 +25,9 @@
 #define VK_M 0x4D
 #define VK_D 0x44
 
-uint32_t errorCode = 0x0;
+using namespace Dirt::Memory;
+using namespace Dirt::Error;
+using namespace Dirt::Structures;
 
 struct DirectoryView
 {
@@ -55,8 +55,8 @@ struct GlobalState
   Screen *currentScreen = 0;
   bool quit = false;
   size_t maxEntriesInView = 128;
-  Dirt::Structures::HashMap selection;
-  Dirt::Structures::HashMap DirCursorIndices;
+  Hashmap *selection;
+  Hashmap *dirCursorIndices;
   Input input;
 } globalState;
 
@@ -96,21 +96,21 @@ int main(int argc, char **argv)
   }
   globalState.currentScreen = &firstScreen;
 
-  if(!initHashMap(
-    &globalState.selection,
-    DIRT_SELECTIONBUF_MIN_SIZE,
-    DIRT_SELECTIONBUF_MIN_DUPES,
-    MAX_PATH))
+  if(!(globalState.selection = 
+    hashmapCreate(
+    DIRT_SELECTIONBUF_MIN_SIZE, 
+    DIRT_SELECTIONBUF_MIN_DUPES, 
+    MAX_PATH)))
   {
     printf("Failed to init hashmap for entry selection\n");
     return 1;
   }
 
-  if(!initHashMap(
-    &globalState.DirCursorIndices,
+  if(!(globalState.dirCursorIndices = 
+    hashmapCreate(
     DIRT_CURSORINDICES_MIN_SIZE,
     DIRT_CURSORINDICES_MIN_DUPES,
-    MAX_PATH))
+    MAX_PATH)))
   {
     printf("Failed to init hashmap for entry selection\n");
     return 1;
@@ -139,7 +139,7 @@ int main(int argc, char **argv)
   /* { */
   /*   free(globalState.selection.map[i]); */
   /* } */
-  free(globalState.selection.map);
+  free(globalState.selection->map);
   free(firstScreen.leftView.entries);
   free(firstScreen.rightView.entries);
 
@@ -217,14 +217,14 @@ void clearScreen(Screen &screen)
 
 char **getSelection(int &amountOut)
 {
-  int bufSize = globalState.selection.nObjects;
+  int bufSize = globalState.selection->nSlots;
   char **selected = 0;
   if(!(selected = (char **)calloc(bufSize, sizeof(char *))))
   {
     printf("calloc failed to allocate array of strings for selected entries\n");
     return 0;
   }
-  for(int i = 0; i < globalState.selection.nObjects; i++)
+  for(int i = 0; i < globalState.selection->nSlots; i++)
   {
     if(!(selected[i] = (char *)calloc(MAX_PATH, sizeof(char))))
     {
@@ -240,13 +240,13 @@ char **getSelection(int &amountOut)
 
   int idx = 0;
 
-  for(int i = 0; i < globalState.selection.nObjects; i++)
+  for(int i = 0; i < globalState.selection->nSlots; i++)
   {
-    if(globalState.selection.map[i][0].isSet)
+    if(globalState.selection->map[i][0].isSet)
     {
-      for(int j = 0; j < globalState.selection.nDupes; j++)
+      for(int j = 0; j < globalState.selection->nDupes; j++)
       {
-        if(!globalState.selection.map[i][j].isSet)
+        if(!globalState.selection->map[i][j].isSet)
         {
           break;
         }
@@ -262,7 +262,7 @@ char **getSelection(int &amountOut)
           }
           else 
           {
-            for(int k = idx; k < globalState.selection.nObjects; k++)
+            for(int k = idx; k < globalState.selection->nSlots; k++)
             {
               if(!(selected[k] = (char *)calloc(MAX_PATH, sizeof(char))))
               {
@@ -278,7 +278,7 @@ char **getSelection(int &amountOut)
           }
         }
 
-        strcpy(selected[idx++], (char *)globalState.selection.map[i][j].data);
+        strcpy(selected[idx++], (char *)globalState.selection->map[i][j].data);
       }
     }
   }
@@ -408,7 +408,7 @@ void freeSelection(char **selection, int amount)
 
 bool removeEntryFromSelection(char *path)
 {
-  if(!isPathInHashMap(&globalState.selection, path))
+  if(!hashMapContains(globalState.selection, path, strlen(path), 0, 0))
   {
     printf("Entry not in selection\n");
     return false;

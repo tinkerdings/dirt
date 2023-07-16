@@ -1,6 +1,6 @@
 @echo off
 
-pushd .\build
+pushd ..\build
 
 set ARG=%1
 
