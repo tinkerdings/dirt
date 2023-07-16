@@ -1,5 +1,5 @@
 @echo off
 
-pushd .\build
+pushd ..\build
 devenv dirt.exe
 popd

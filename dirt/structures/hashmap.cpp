@@ -10,18 +10,18 @@ namespace Dirt
   namespace Structures
   {
     // djb2 hash function
-    size_t hash(uint8_t *bytes, size_t dataSize)
+    size_t hash(void *data, size_t dataSize)
     {
       size_t hash = 5381;
       for(size_t i = 0; i < dataSize; i++)
       {
-        hash = ((hash << 5) + hash) + bytes[i];
+        hash = ((hash << 5) + hash) + ((uint8_t *)data)[i];
       }
 
       return hash;
     }
 
-    size_t hashmapGetIndex(Hashmap *map, uint8_t *data, size_t dataSize)
+    size_t hashmapGetIndex(Hashmap *map, void *data, size_t dataSize)
     {
       return hash(data, dataSize) % map->nSlots;
     }
@@ -153,6 +153,28 @@ namespace Dirt
           map->nSet++;
         }
       }
+
+      return true;
+    }
+
+    bool hashmapDirectWrite(Hashmap *map, void *data, size_t hashIndex, size_t dupeIndex, size_t dataSize)
+    {
+      if((hashIndex >= map->nSlots) || dupeIndex >= map->nDupes)
+      {
+        return false;
+      }
+
+
+      memset(map->map[hashIndex][dupeIndex].data, 0, map->map[hashIndex][dupeIndex].nBytes);
+      memcpy(map->map[hashIndex][dupeIndex].data, data, dataSize);
+
+      if(!map->map[hashIndex][0].isSet)
+      {
+        map->nSet++;
+      }
+
+      map->map[hashIndex][dupeIndex].isSet = true;
+      map->map[hashIndex][dupeIndex].nBytes = dataSize;
 
       return true;
     }

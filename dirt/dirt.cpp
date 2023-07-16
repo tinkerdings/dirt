@@ -1,3 +1,4 @@
+#include "structures/hashmap.h"
 #include <windows.h>
 #include <Shlwapi.h>
 #include <DbgHelp.h>
@@ -13,8 +14,8 @@
 
 #define DIRT_SELECTIONBUF_MIN_DUPES 10
 #define DIRT_SELECTIONBUF_MIN_SIZE 512
-#define DIRT_CURSORINDICES_MIN_DUPES 4
-#define DIRT_CURSORINDICES_MIN_SIZE 128
+#define DIRT_CURSORINDICES_MIN_DUPES 10
+#define DIRT_CURSORINDICES_MIN_SIZE 32
 #define INPUTBUF_SIZE 3
 
 #define VK_Q 0x51
@@ -37,6 +38,7 @@ struct DirectoryView
   size_t nEntries = 0;
   WIN32_FIND_DATA *entries = 0;
   uint32_t cursorIndex = 0;
+  Hashmap *cursorMap;
 };
 
 struct Screen
@@ -56,7 +58,6 @@ struct GlobalState
   bool quit = false;
   size_t maxEntriesInView = 128;
   Hashmap *selection;
-  Hashmap *dirCursorIndices;
   Input input;
 } globalState;
 
@@ -73,7 +74,7 @@ void swapScreenBuffers(Screen &screen);
 void handleInput(Screen &screen, HANDLE stdinHandle);
 void incrementScreenCursorIndex(Screen &screen);
 void decrementScreenCursorIndex(Screen &screen);
-void setViewPathRelative(DirectoryView &view, const char *relPath);
+void setViewPath(DirectoryView &view, char *relPath);
 void clearScreen(Screen &screen);
 bool getFullPath(char *out, char* relPath, size_t outLen);
 bool removeEntryFromSelection(char *path);
@@ -100,16 +101,6 @@ int main(int argc, char **argv)
     hashmapCreate(
     DIRT_SELECTIONBUF_MIN_SIZE, 
     DIRT_SELECTIONBUF_MIN_DUPES, 
-    MAX_PATH)))
-  {
-    printf("Failed to init hashmap for entry selection\n");
-    return 1;
-  }
-
-  if(!(globalState.dirCursorIndices = 
-    hashmapCreate(
-    DIRT_CURSORINDICES_MIN_SIZE,
-    DIRT_CURSORINDICES_MIN_DUPES,
     MAX_PATH)))
   {
     printf("Failed to init hashmap for entry selection\n");
@@ -521,12 +512,7 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
             if(activeEntry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             {
               clearScreen(*globalState.currentScreen);
-              setViewPathRelative(*screen.active, activeEntry.cFileName);
-
-              if(!SetCurrentDirectory(screen.active->path))
-              {
-                printf("Failed to set current directory (%lu)\n", GetLastError());
-              }
+              setViewPath(*screen.active, activeEntry.cFileName);
             }
             else
             {
@@ -601,11 +587,7 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
           case(VK_H):
           {
             clearScreen(*globalState.currentScreen);
-            setViewPathRelative(*screen.active, "..");
-            if(!SetCurrentDirectory(screen.active->path))
-            {
-              printf("Failed to set current directory (%lu)\n", GetLastError());
-            }
+            setViewPath(*screen.active, "..");
           } break;
           case(VK_SPACE):
           {
@@ -672,20 +654,36 @@ bool inputNoKeyRepeat(INPUT_RECORD *inputBuffer, uint32_t index, uint32_t size)
   return true;
 }
 
-void setViewPathRelative(DirectoryView &view, const char *relPath)
+void setViewPath(DirectoryView &view, char *relPath)
 {
-  if((strlen(view.path)+strlen(relPath)+2) > MAX_PATH)
+  if(!SetCurrentDirectory(view.path))
   {
-    printf("path length exceeds limit\n");
-    return;
+    printf("Failed to set current directory (%lu)\n", GetLastError());
   }
-  strcat(view.path, "/");
-  strcat(view.path, relPath);
+
+  char fullPath[MAX_PATH] = {0};
+  getFullPath(fullPath, relPath, MAX_PATH);
+
+  uint32_t cursorIndex = view.cursorIndex;
+  size_t hashIndex = hashmapGetIndex(view.cursorMap, view.path, MAX_PATH);
+  Dirt::Structures::hashmapDirectWrite(view.cursorMap, &cursorIndex, hashIndex, 0, sizeof(uint32_t));
+
+  strcpy(view.path, fullPath);
 
   free(view.entries);
   view.entries = 0;
   globalState.maxEntriesInView = 128;
   view.entries = findDirectoryEntries(view.path, view.nEntries);
+
+  hashIndex = hashmapGetIndex(view.cursorMap, view.path, MAX_PATH);
+  if(view.cursorMap->map[hashIndex][0].isSet)
+  {
+    view.cursorIndex = (uint32_t)(*view.cursorMap->map[hashIndex][0].data);
+  }
+  else 
+  {
+    view.cursorIndex = 0;
+  }
 }
 
 void incrementScreenCursorIndex(Screen &screen)
@@ -734,6 +732,7 @@ bool initScreenDirectoryViews(Screen &screen)
     printf("findDirectoryEntries failed (%lu)\n", GetLastError());
     return false;
   }
+  screen.leftView.cursorMap = hashmapCreate(DIRT_CURSORINDICES_MIN_SIZE, DIRT_CURSORINDICES_MIN_DUPES, 1);
 
   strcpy(screen.rightView.path, "C:\\");
   screen.rightView.renderRect.Top = 0;
@@ -748,6 +747,7 @@ bool initScreenDirectoryViews(Screen &screen)
     printf("findDirectoryEntries failed (%lu)\n", GetLastError());
     return false;
   }
+  screen.leftView.cursorMap = hashmapCreate(DIRT_CURSORINDICES_MIN_SIZE, DIRT_CURSORINDICES_MIN_DUPES, 1);
 
   screen.active = &screen.leftView;
   if(!SetCurrentDirectory(screen.leftView.path))
