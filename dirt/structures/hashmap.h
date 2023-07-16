@@ -25,6 +25,7 @@ namespace Dirt
     Hashmap *hashmapCreate(size_t nSlots, size_t nDupes, size_t dataSize);
     void hashmapDestroy(Hashmap *map);
     bool hashmapInsert(Hashmap *map, void *data, size_t dataSize);
+    bool hashmapInsertAtKey(Hashmap *map, void *key, void *data, size_t keySize, size_t dataSize);
     bool hashmapRemove(Hashmap *map, void *data, size_t dataSize);
     bool hashmapResize(Hashmap *map, size_t nObjects, size_t nDupes);
     bool hashmapContains(Hashmap *map, void *data, size_t dataSize, size_t *hashIndex, size_t *dupeIndex);

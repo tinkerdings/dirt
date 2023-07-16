@@ -1,3 +1,4 @@
+#include "memory/memory.h"
 #include "structures/hashmap.h"
 #include <windows.h>
 #include <Shlwapi.h>
@@ -32,12 +33,17 @@ using namespace Dirt::Structures;
 
 struct DirectoryView
 {
-  char path[MAX_PATH] = {0};
   SMALL_RECT renderRect = {0};
   SHORT width = 0, height = 0;
   size_t nEntries = 0;
+  size_t cursorIndex = 0;
+  char path[MAX_PATH] = {0};
   WIN32_FIND_DATA *entries = 0;
-  uint32_t cursorIndex = 0;
+  struct CursorMapEntry
+  {
+    size_t cursorIndex;
+    char path[MAX_PATH] = {0};
+  };
   Hashmap *cursorMap;
 };
 
@@ -86,6 +92,7 @@ void printSelection();
 bool moveSelection();
 bool deleteSelection();
 bool clearAllSelection();
+size_t getViewCursorIndex(DirectoryView &view);
 
 int main(int argc, char **argv)
 {
@@ -665,9 +672,20 @@ void setViewPath(DirectoryView &view, char *relPath)
     printf("Failed to set current directory (%lu)\n", GetLastError());
   }
 
-  uint32_t cursorIndex = view.cursorIndex;
-  size_t hashIndex = hashmapGetIndex(view.cursorMap, view.path, MAX_PATH);
-  Dirt::Structures::hashmapDirectWrite(view.cursorMap, &cursorIndex, hashIndex, 0, sizeof(uint32_t));
+  if(view.path[0])
+  {
+    size_t cursorIndex = view.cursorIndex;
+    DirectoryView::CursorMapEntry cursorIndexEntry;
+    size_t viewPathLen = strlen(view.path);
+    cursorIndexEntry.cursorIndex = cursorIndex;
+    memcpy(cursorIndexEntry.path, view.path, viewPathLen);
+    Dirt::Structures::hashmapInsertAtKey(
+        view.cursorMap,
+        view.path,
+        &cursorIndexEntry,
+        viewPathLen,
+        sizeof(DirectoryView::CursorMapEntry));
+  }
 
   strcpy(view.path, fullPath);
 
@@ -676,15 +694,7 @@ void setViewPath(DirectoryView &view, char *relPath)
   globalState.maxEntriesInView = 128;
   view.entries = findDirectoryEntries(view.path, view.nEntries);
 
-  hashIndex = hashmapGetIndex(view.cursorMap, view.path, MAX_PATH);
-  if(view.cursorMap->map[hashIndex][0].isSet)
-  {
-    view.cursorIndex = (uint32_t)(*view.cursorMap->map[hashIndex][0].data);
-  }
-  else 
-  {
-    view.cursorIndex = 0;
-  }
+  view.cursorIndex = getViewCursorIndex(view);
 }
 
 void incrementScreenCursorIndex(Screen &screen)
@@ -712,6 +722,29 @@ void decrementScreenCursorIndex(Screen &screen)
   }
 }
 
+size_t getViewCursorIndex(DirectoryView &view)
+{
+  size_t viewPathLen = strlen(view.path);
+  size_t hashIndex = hashmapGetIndex(view.cursorMap, view.path, viewPathLen);
+
+  if(view.cursorMap->map[hashIndex][0].isSet)
+  {
+    for(size_t i = 0; i < view.cursorMap->nDupes; i++)
+    {
+      DirectoryView::CursorMapEntry *entry = (DirectoryView::CursorMapEntry *)view.cursorMap->map[hashIndex][i].data;
+      bool ret;
+      size_t entryPathLen = strlen(entry->path);
+      size_t viewPathLen = strlen(view.path);
+      if((ret = Dirt::Memory::compareBytes(entry->path, view.path, entryPathLen, viewPathLen)))
+      {
+        return entry->cursorIndex;
+      }
+    }
+  }
+
+  return 0;
+}
+
 bool initScreenDirectoryViews(Screen &screen)
 {
   char currentDir[MAX_PATH] = {0};
@@ -720,8 +753,12 @@ bool initScreenDirectoryViews(Screen &screen)
     printf("initScreenDirectoryViews:GetCurrentDirectory failed (%lu)\n", GetLastError());
     return false;
   }
-  screen.leftView.cursorMap = hashmapCreate(DIRT_CURSORINDICES_MIN_SIZE, DIRT_CURSORINDICES_MIN_DUPES, 1);
-  setViewPath(screen.leftView, currentDir); // TODO set this to currentDir, this is just for testing.
+  screen.leftView.cursorMap = 
+    hashmapCreate(
+      DIRT_CURSORINDICES_MIN_SIZE,
+      DIRT_CURSORINDICES_MIN_DUPES,
+      sizeof(DirectoryView::CursorMapEntry));
+  strcpy(screen.leftView.path, currentDir);
   screen.leftView.renderRect.Top = 0;
   screen.leftView.renderRect.Left = 0;
   screen.leftView.renderRect.Bottom = 80;
@@ -735,8 +772,12 @@ bool initScreenDirectoryViews(Screen &screen)
     return false;
   }
 
-  screen.rightView.cursorMap = hashmapCreate(DIRT_CURSORINDICES_MIN_SIZE, DIRT_CURSORINDICES_MIN_DUPES, 1);
-  setViewPath(screen.rightView, "C:\\");
+  screen.rightView.cursorMap = 
+    hashmapCreate(
+        DIRT_CURSORINDICES_MIN_SIZE,
+        DIRT_CURSORINDICES_MIN_DUPES,
+        sizeof(DirectoryView::CursorMapEntry));
+  strcpy(screen.rightView.path, "C:\\");
   screen.rightView.renderRect.Top = 0;
   screen.rightView.renderRect.Left = 42;
   screen.rightView.renderRect.Bottom = 80;

@@ -156,6 +156,46 @@ namespace Dirt
       return true;
     }
 
+    bool hashmapInsertAtKey(Hashmap *map, void *key, void *data, size_t keySize, size_t dataSize)
+    {
+      size_t hashIndex = hashmapGetIndex(map, key, keySize);
+
+      if(map->nSet >= map->nSlots)
+      {
+        hashmapResize(map, map->nSlots*2, map->nDupes);
+      }
+
+      bool foundFreeSpot = false;
+      int i;
+      for(i = 0; i < map->nDupes; i++)
+      {
+        if((foundFreeSpot = (!map->map[hashIndex][i].isSet)))
+        {
+          break;
+        }
+      }
+
+      if(!foundFreeSpot)
+      {
+        hashmapResize(map, map->nSlots, map->nDupes * 2);
+        memset((uint8_t *)map->map[hashIndex][i+1].data, 0, map->dataSize);
+        memcpy((uint8_t *)map->map[hashIndex][i+1].data, data, dataSize);
+        map->map[hashIndex][i+1].isSet = true;
+      }
+      else 
+      {
+        memset((uint8_t *)map->map[hashIndex][i].data, 0, map->dataSize);
+        memcpy((uint8_t *)map->map[hashIndex][i].data, data, dataSize);
+        map->map[hashIndex][i].isSet = true;
+        if(i == 0)
+        {
+          map->nSet++;
+        }
+      }
+
+      return true;
+    }
+
     bool hashmapDirectWrite(Hashmap *map, void *data, size_t hashIndex, size_t dupeIndex, size_t dataSize)
     {
       if((hashIndex >= map->nSlots) || dupeIndex >= map->nDupes)
