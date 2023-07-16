@@ -1,5 +1,3 @@
-#include "memory/memory.h"
-#include "structures/hashmap.h"
 #include <windows.h>
 #include <Shlwapi.h>
 #include <DbgHelp.h>
@@ -1002,9 +1000,22 @@ WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
   entry = FindFirstFile(fullPath, &entries[0]);
   if(entry == INVALID_HANDLE_VALUE)
   {
-    printf("FindFirstFile failed (%lu)\n", GetLastError());
-    free(entries);
-    return 0;
+    DWORD fileAttribs = GetFileAttributesA(fullPath);
+    if(!fileAttribs)
+    {
+      printf("GetFileAttributesA failed (%lu)\n", GetLastError());
+      return 0;
+    }
+    if(fileAttribs & FILE_ATTRIBUTE_REPARSE_POINT)
+    {
+      // TODO: Handle this
+    }
+    else 
+    {
+      printf("FindFirstFile failed (%lu)\n", GetLastError());
+      free(entries);
+      return 0;
+    }
   }
 
   size_t i = 1;
