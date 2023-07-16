@@ -1,9 +1,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <structures/hashmap.h>
-#include <error/errorCode.h>
-#include <memory/memory.h>
+#include <dirt/structures/hashmap.h>
+#include <dirt/error/errorCode.h>
+#include <dirt/memory/memory.h>
 
 namespace Dirt
 {
@@ -21,9 +21,9 @@ namespace Dirt
       return hash;
     }
 
-    size_t index(Hashmap *map, uint8_t *bytes, size_t len)
+    size_t getHashIndex(Hashmap *map, uint8_t *data, size_t len)
     {
-      return hash(bytes, len) % map->nSlots;
+      return hash(data, len) % map->nSlots;
     }
 
     Hashmap *hashmapCreate(size_t nSlots, size_t nDupes, size_t dataSize)
@@ -81,10 +81,10 @@ namespace Dirt
       return map;
     }
 
-    bool hashmapInsertEntry(Hashmap *map, void *data, size_t size)
+    bool hashmapInsert(Hashmap *map, void *data, size_t size)
     {
       size_t hashIndex = 
-        index(map, (uint8_t *)data, size);
+        getHashIndex(map, (uint8_t *)data, size);
 
       if(map->nSet >= map->nSlots)
       {
@@ -183,7 +183,7 @@ namespace Dirt
     {
       size_t hashIndex = 0;
       size_t dupeIndex = 0;
-      if(!hashmapContains(map, data, dataSize, hashIndex, dupeIndex))
+      if(!hashmapContains(map, data, dataSize, &hashIndex, &dupeIndex))
       {
         return false;
       }
@@ -202,6 +202,7 @@ namespace Dirt
         memset(map->map[hashIndex][dupeIndex].data, 0, map->map[hashIndex][dupeIndex].nBytes);
         map->map[hashIndex][dupeIndex].isSet = false;
         map->map[hashIndex][dupeIndex].nBytes = 0;
+        map->nSet--;
         return true;
       }
 
@@ -216,9 +217,9 @@ namespace Dirt
       return true;
     }
 
-    bool hashmapContains(Hashmap *map, void *data, size_t dataSize, size_t &hashIndex, size_t &dupeIndex)
+    bool hashmapContains(Hashmap *map, void *data, size_t dataSize, size_t *hashIndex, size_t *dupeIndex)
     {
-      size_t idx = index(map, (uint8_t *)data, dataSize);
+      size_t idx = getHashIndex(map, (uint8_t *)data, dataSize);
       if(map->map[idx][0].isSet)
       {
         size_t i;
@@ -226,8 +227,8 @@ namespace Dirt
         {
           if(Dirt::Memory::compareBytes(map->map[idx][i].data, data, map->map[idx][i].nBytes, dataSize))
           {
-            hashIndex = idx;
-            dupeIndex = i;
+            *hashIndex = idx;
+            *dupeIndex = i;
             return true;
           }
         }

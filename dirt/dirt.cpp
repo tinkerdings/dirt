@@ -408,53 +408,13 @@ void freeSelection(char **selection, int amount)
 
 bool removeEntryFromSelection(char *path)
 {
-  if(!hashMapContains(globalState.selection, path, strlen(path), 0, 0))
+  if(!hashmapRemove(globalState.selection, path, strlen(path)))
   {
-    printf("Entry not in selection\n");
+    printf("hashmapRemove failed\n");
     return false;
   }
 
-  size_t hashIndex = hash(path, strlen(path)) % globalState.selection.nObjects;
-
-  for(int i = 0; i < globalState.selection.nDupes; i++)
-  {
-    if(!strcmp(path, (char *)globalState.selection.map[hashIndex][i]))
-    {
-      int lastDupe = 0;
-      for(int j = i+1; j < globalState.selection.nDupes; j++)
-      {
-        if(!globalState.selection.map[hashIndex][j][0])
-        {
-          lastDupe = j-1;
-          break;
-        }
-      }
-      if(lastDupe != i)
-      {
-        int j = i;
-        int k = i+1;
-        for(; k < lastDupe-1; j++, k++)
-        {
-          strcpy((char *)globalState.selection.map[hashIndex][j], (char *)globalState.selection.map[hashIndex][k]);
-        }
-        globalState.selection.map[hashIndex][k][0] = '\0';
-      }
-      else 
-      {
-        globalState.selection.map[hashIndex][i][0] = '\0';
-
-        if(i == 0)
-        {
-          globalState.selection.nSet--;
-        }
-      }
-
-      return true;
-    }
-  }
-
-  printf("Something went horribly wrong\n");
-  return false;
+  return true;
 }
 
 bool clearAllSelection()
@@ -665,13 +625,13 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
                 printf("getFullPath failed (%lu)\n", GetLastError());
                 break;
               }
-              if(isPathInHashMap(&globalState.selection, fullPath))
+              if(hashmapContains(globalState.selection, fullPath, strlen(fullPath), 0, 0))
               {
                 removeEntryFromSelection(fullPath);
               }
               else 
               {
-                int ret = hashMapAdd(&globalState.selection, fullPath);
+                int ret = hashmapInsert(globalState.selection, fullPath, strlen(fullPath));
                 if(ret == DIRT_ERROR_ALLOCATION_FAILURE)
                 {
                   printf("hashMapAdd failed with error DIRT_SEL_ALLOCATION_FAILURE (0x1)\n");
@@ -881,7 +841,7 @@ void styleView(HANDLE screenBuffer, DirectoryView view)
     char fullPath[MAX_PATH] = {0};
     getFullPath(fullPath, entry.cFileName, MAX_PATH);
 
-    if(isPathInHashMap(&globalState.selection, fullPath))
+    if(hashmapContains(globalState.selection, fullPath, strlen(fullPath), 0, 0))
     {
       FillConsoleOutputAttribute(
           screenBuffer,
@@ -912,7 +872,7 @@ void highlightLine(Screen &screen)
   char fullPath[MAX_PATH] = {0};
   getFullPath(fullPath, screen.active->entries[screen.active->cursorIndex].cFileName, MAX_PATH);
 
-  if(isPathInHashMap(&globalState.selection, fullPath))
+  if(hashmapContains(globalState.selection, fullPath, strlen(fullPath), 0, 0))
   {
     attribs ^= FOREGROUND_RED | FOREGROUND_BLUE;
   }

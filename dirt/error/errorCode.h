@@ -11,7 +11,7 @@ namespace Dirt
 {
   namespace Error
   {
-    uint32_t errorCode;
+    extern uint32_t errorCode;
   }
 }
 

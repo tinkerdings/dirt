@@ -1,4 +1,4 @@
-#include <memory/memory.h>
+#include <dirt/memory/memory.h>
 #include <stdint.h>
 
 namespace Dirt
