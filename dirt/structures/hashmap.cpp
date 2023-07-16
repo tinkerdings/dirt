@@ -12,10 +12,10 @@ namespace Dirt
     // djb2 hash function
     size_t hash(void *data, size_t dataSize)
     {
-      size_t hash = 5381;
-      for(size_t i = 0; i < dataSize; i++)
+      uint32_t hash = 5381;
+      for(uint32_t i = 0; i < dataSize; i++)
       {
-        hash = ((hash << 5) + hash) + ((uint8_t *)data)[i];
+        hash = ((hash << 5) + hash) + ((uint32_t *)data)[i];
       }
 
       return hash;
@@ -119,7 +119,7 @@ namespace Dirt
     bool hashmapInsert(Hashmap *map, void *data, size_t size)
     {
       size_t hashIndex = 
-        hashmapGetIndex(map, (uint8_t *)data, size);
+        hashmapGetIndex(map, data, size);
 
       if(map->nSet >= map->nSlots)
       {
@@ -139,13 +139,13 @@ namespace Dirt
       if(!foundFreeSpot)
       {
         hashmapResize(map, map->nSlots, map->nDupes * 2);
-        memset((uint8_t *)map->map[hashIndex][i+1].data, 0, size);
+        memset((uint8_t *)map->map[hashIndex][i+1].data, 0, map->dataSize);
         memcpy((uint8_t *)map->map[hashIndex][i+1].data, data, size);
         map->map[hashIndex][i+1].isSet = true;
       }
       else 
       {
-        memset((uint8_t *)map->map[hashIndex][i].data, 0, size);
+        memset((uint8_t *)map->map[hashIndex][i].data, 0, map->dataSize);
         memcpy((uint8_t *)map->map[hashIndex][i].data, data, size);
         map->map[hashIndex][i].isSet = true;
         if(i == 0)
@@ -165,7 +165,7 @@ namespace Dirt
       }
 
 
-      memset(map->map[hashIndex][dupeIndex].data, 0, map->map[hashIndex][dupeIndex].nBytes);
+      memset(map->map[hashIndex][dupeIndex].data, 0, map->dataSize);
       memcpy(map->map[hashIndex][dupeIndex].data, data, dataSize);
 
       if(!map->map[hashIndex][0].isSet)
@@ -256,7 +256,7 @@ namespace Dirt
 
       if(freeSpot == 1)
       {
-        memset(map->map[hashIndex][dupeIndex].data, 0, map->map[hashIndex][dupeIndex].nBytes);
+        memset(map->map[hashIndex][dupeIndex].data, 0, map->dataSize);
         map->map[hashIndex][dupeIndex].isSet = false;
         map->map[hashIndex][dupeIndex].nBytes = 0;
         map->nSet--;
@@ -268,7 +268,7 @@ namespace Dirt
       {
         memcpy(map->map[hashIndex][j-1].data, map->map[hashIndex][j].data, map->map[hashIndex][j].nBytes);
       }
-      memset(map->map[hashIndex][j].data, 0, map->map[hashIndex][j].nBytes);
+      memset(map->map[hashIndex][j].data, 0, map->dataSize);
       map->map[hashIndex][j].isSet = false;
       map->map[hashIndex][j].nBytes = 0;
       return true;
@@ -276,7 +276,7 @@ namespace Dirt
 
     bool hashmapContains(Hashmap *map, void *data, size_t dataSize, size_t *hashIndex, size_t *dupeIndex)
     {
-      size_t idx = hashmapGetIndex(map, (uint8_t *)data, dataSize);
+      size_t idx = hashmapGetIndex(map, data, dataSize);
       if(map->map[idx][0].isSet)
       {
         size_t i;
@@ -284,8 +284,14 @@ namespace Dirt
         {
           if(Dirt::Memory::compareBytes(map->map[idx][i].data, data, map->map[idx][i].nBytes, dataSize))
           {
-            *hashIndex = idx;
-            *dupeIndex = i;
+            if(hashIndex)
+            {
+              *hashIndex = idx;
+            }
+            if(dupeIndex)
+            {
+              *dupeIndex = i;
+            }
             return true;
           }
         }

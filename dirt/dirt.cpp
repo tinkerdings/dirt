@@ -74,6 +74,7 @@ void swapScreenBuffers(Screen &screen);
 void handleInput(Screen &screen, HANDLE stdinHandle);
 void incrementScreenCursorIndex(Screen &screen);
 void decrementScreenCursorIndex(Screen &screen);
+bool setActiveView(Screen &screen, DirectoryView &view);
 void setViewPath(DirectoryView &view, char *relPath);
 void clearScreen(Screen &screen);
 bool getFullPath(char *out, char* relPath, size_t outLen);
@@ -117,7 +118,8 @@ int main(int argc, char **argv)
   }
 
   SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
-
+  char* preselected = "W:\\test\\b\\b - Copy (3).txt";
+  hashmapInsert(globalState.selection, preselected, strlen(preselected));
   while(!globalState.quit)
   {
     renderScreenDirectoryViews(*globalState.currentScreen);
@@ -138,6 +140,8 @@ int main(int argc, char **argv)
 
 bool getFullPath(char *out, char* relPath, size_t outLen)
 {
+  char currentDir[MAX_PATH] = {0};
+  GetCurrentDirectoryA(MAX_PATH, currentDir);
   char fullPath[MAX_PATH] = {0};
   GetFullPathNameA(relPath, MAX_PATH, fullPath, 0);
   if(strlen(fullPath) > outLen)
@@ -267,7 +271,8 @@ char **getSelection(int &amountOut)
           }
         }
 
-        strcpy(selected[idx++], (char *)globalState.selection->map[i][j].data);
+        memcpy(selected[idx], globalState.selection->map[i][j].data, globalState.selection->map[i][j].nBytes);
+        idx++;
       }
     }
   }
@@ -310,9 +315,10 @@ bool deleteSelection()
         0,
         0
       };
-      if(SHFileOperation(&fileOperation))
+      int ret;
+      if((ret = SHFileOperation(&fileOperation)))
       {
-        printf("SHFileOperation failed (%lu)\n", GetLastError());
+        printf("SHFileOperation failed (%lu)\n", ret);
         return false;
       }
     }
@@ -396,7 +402,7 @@ void freeSelection(char **selection, int amount)
 
 bool removeEntryFromSelection(char *path)
 {
-  if(!hashmapRemove(globalState.selection, path, strlen(path)))
+  if(!hashmapRemove(globalState.selection, path, MAX_PATH))
   {
     printf("hashmapRemove failed\n");
     return false;
@@ -604,21 +610,21 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
                 printf("getFullPath failed (%lu)\n", GetLastError());
                 break;
               }
-              if(hashmapContains(globalState.selection, fullPath, strlen(fullPath), 0, 0))
+              if(hashmapContains(globalState.selection, fullPath, MAX_PATH, 0, 0))
               {
                 removeEntryFromSelection(fullPath);
               }
               else 
               {
-                int ret = hashmapInsert(globalState.selection, fullPath, strlen(fullPath));
+                int ret = hashmapInsert(globalState.selection, fullPath, MAX_PATH);
                 if(ret == DIRT_ERROR_ALLOCATION_FAILURE)
                 {
-                  printf("hashMapAdd failed with error DIRT_SEL_ALLOCATION_FAILURE (0x1)\n");
+                  printf("hashMapInsert failed with error DIRT_SEL_ALLOCATION_FAILURE (0x1)\n");
                   break;
                 }
                 if(ret == DIRT_ERROR_INVALID_ENTRY)
                 {
-                  printf("hashMapAdd failed with error DIRT_SEL_INVALID_ENTRY (0x2), for path: %s\n", fullPath);
+                  printf("hashMapInsert failed with error DIRT_SEL_INVALID_ENTRY (0x2), for path: %s\n", fullPath);
                   break;
                 }
               }
@@ -656,13 +662,13 @@ bool inputNoKeyRepeat(INPUT_RECORD *inputBuffer, uint32_t index, uint32_t size)
 
 void setViewPath(DirectoryView &view, char *relPath)
 {
-  if(!SetCurrentDirectory(view.path))
+  char fullPath[MAX_PATH] = {0};
+  getFullPath(fullPath, relPath, MAX_PATH);
+
+  if(!SetCurrentDirectory(fullPath))
   {
     printf("Failed to set current directory (%lu)\n", GetLastError());
   }
-
-  char fullPath[MAX_PATH] = {0};
-  getFullPath(fullPath, relPath, MAX_PATH);
 
   uint32_t cursorIndex = view.cursorIndex;
   size_t hashIndex = hashmapGetIndex(view.cursorMap, view.path, MAX_PATH);
@@ -719,7 +725,8 @@ bool initScreenDirectoryViews(Screen &screen)
     printf("initScreenDirectoryViews:GetCurrentDirectory failed (%lu)\n", GetLastError());
     return false;
   }
-  strcpy(screen.leftView.path, currentDir);
+  screen.leftView.cursorMap = hashmapCreate(DIRT_CURSORINDICES_MIN_SIZE, DIRT_CURSORINDICES_MIN_DUPES, 1);
+  setViewPath(screen.leftView, "W:\\test\\b"); // TODO set this to currentDir, this is just for testing.
   screen.leftView.renderRect.Top = 0;
   screen.leftView.renderRect.Left = 0;
   screen.leftView.renderRect.Bottom = 80;
@@ -732,9 +739,9 @@ bool initScreenDirectoryViews(Screen &screen)
     printf("findDirectoryEntries failed (%lu)\n", GetLastError());
     return false;
   }
-  screen.leftView.cursorMap = hashmapCreate(DIRT_CURSORINDICES_MIN_SIZE, DIRT_CURSORINDICES_MIN_DUPES, 1);
 
-  strcpy(screen.rightView.path, "C:\\");
+  screen.rightView.cursorMap = hashmapCreate(DIRT_CURSORINDICES_MIN_SIZE, DIRT_CURSORINDICES_MIN_DUPES, 1);
+  setViewPath(screen.rightView, "C:\\");
   screen.rightView.renderRect.Top = 0;
   screen.rightView.renderRect.Left = 42;
   screen.rightView.renderRect.Bottom = 80;
@@ -747,15 +754,20 @@ bool initScreenDirectoryViews(Screen &screen)
     printf("findDirectoryEntries failed (%lu)\n", GetLastError());
     return false;
   }
-  screen.leftView.cursorMap = hashmapCreate(DIRT_CURSORINDICES_MIN_SIZE, DIRT_CURSORINDICES_MIN_DUPES, 1);
 
-  screen.active = &screen.leftView;
-  if(!SetCurrentDirectory(screen.leftView.path))
+  setActiveView(screen, screen.leftView);
+
+  return true;
+}
+
+bool setActiveView(Screen &screen, DirectoryView &view)
+{
+  screen.active = &view;
+  if(!SetCurrentDirectory(screen.active->path))
   {
     printf("Failed to set current directory (%lu)\n", GetLastError());
     return false;
   }
-
   return true;
 }
 
@@ -828,13 +840,13 @@ void styleView(HANDLE screenBuffer, DirectoryView view)
         &nSet);
     }
 
-    char currentDir[MAX_PATH] = {0};
-    GetCurrentDirectoryA(MAX_PATH, currentDir);
-    if(!SetCurrentDirectory(view.path))
-    {
-      printf("Failed to set current directory (%lu)\n", GetLastError());
-      return;
-    }
+    /* char currentDir[MAX_PATH] = {0}; */
+    /* GetCurrentDirectoryA(MAX_PATH, currentDir); */
+    /* if(!SetCurrentDirectory(view.path)) */
+    /* { */
+    /*   printf("Failed to set current directory (%lu)\n", GetLastError()); */
+    /*   return; */
+    /* } */
     char fullPath[MAX_PATH] = {0};
     getFullPath(fullPath, entry.cFileName, MAX_PATH);
 
@@ -847,11 +859,11 @@ void styleView(HANDLE screenBuffer, DirectoryView view)
           coords,
           &nSet);
     }
-    if(!SetCurrentDirectory(currentDir))
-    {
-      printf("Failed to set current directory (%lu)\n", GetLastError());
-      return;
-    }
+    /* if(!SetCurrentDirectory(currentDir)) */
+    /* { */
+    /*   printf("Failed to set current directory (%lu)\n", GetLastError()); */
+    /*   return; */
+    /* } */
   }
 }
 
@@ -869,7 +881,7 @@ void highlightLine(Screen &screen)
   char fullPath[MAX_PATH] = {0};
   getFullPath(fullPath, screen.active->entries[screen.active->cursorIndex].cFileName, MAX_PATH);
 
-  if(hashmapContains(globalState.selection, fullPath, strlen(fullPath), 0, 0))
+  if(hashmapContains(globalState.selection, fullPath, MAX_PATH, 0, 0))
   {
     attribs ^= FOREGROUND_RED | FOREGROUND_BLUE;
   }
