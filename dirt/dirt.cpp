@@ -92,7 +92,7 @@ void printSelection();
 bool moveSelection();
 bool deleteSelection();
 bool clearAllSelection();
-size_t getViewCursorIndex(DirectoryView &view);
+size_t getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut);
 
 int main(int argc, char **argv)
 {
@@ -679,12 +679,21 @@ void setViewPath(DirectoryView &view, char *relPath)
     size_t viewPathLen = strlen(view.path);
     cursorIndexEntry.cursorIndex = cursorIndex;
     memcpy(cursorIndexEntry.path, view.path, viewPathLen);
-    Dirt::Structures::hashmapInsertAtKey(
+
+    size_t hashIndex, dupeIndex;
+    if(getViewCursorIndex(view, &hashIndex, &dupeIndex))
+    {
+      hashmapDirectWrite(view.cursorMap, &cursorIndexEntry, hashIndex, dupeIndex, sizeof(DirectoryView::CursorMapEntry));
+    }
+    else 
+    {
+      Dirt::Structures::hashmapInsertAtKey(
         view.cursorMap,
         view.path,
         &cursorIndexEntry,
         viewPathLen,
         sizeof(DirectoryView::CursorMapEntry));
+    }
   }
 
   strcpy(view.path, fullPath);
@@ -694,7 +703,7 @@ void setViewPath(DirectoryView &view, char *relPath)
   globalState.maxEntriesInView = 128;
   view.entries = findDirectoryEntries(view.path, view.nEntries);
 
-  view.cursorIndex = getViewCursorIndex(view);
+  view.cursorIndex = getViewCursorIndex(view, 0, 0);
 }
 
 void incrementScreenCursorIndex(Screen &screen)
@@ -722,7 +731,7 @@ void decrementScreenCursorIndex(Screen &screen)
   }
 }
 
-size_t getViewCursorIndex(DirectoryView &view)
+size_t getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut)
 {
   size_t viewPathLen = strlen(view.path);
   size_t hashIndex = hashmapGetIndex(view.cursorMap, view.path, viewPathLen);
@@ -737,6 +746,14 @@ size_t getViewCursorIndex(DirectoryView &view)
       size_t viewPathLen = strlen(view.path);
       if((ret = Dirt::Memory::compareBytes(entry->path, view.path, entryPathLen, viewPathLen)))
       {
+        if(hashIndexOut)
+        {
+          *hashIndexOut = hashIndex;
+        }
+        if(dupeIndexOut)
+        {
+          *dupeIndexOut = i;
+        }
         return entry->cursorIndex;
       }
     }
