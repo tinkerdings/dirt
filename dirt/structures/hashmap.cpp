@@ -10,18 +10,18 @@ namespace Dirt
   namespace Structures
   {
     // djb2 hash function
-    size_t hash(void *data, size_t dataSize)
+    uint32_t hash(void *data, uint32_t dataSize)
     {
       uint32_t hash = 5381;
       for(uint32_t i = 0; i < dataSize; i++)
       {
-        hash = ((hash << 5) + hash) + ((uint32_t *)data)[i];
+        hash = ((hash << 5) + hash) + ((uint8_t *)data)[i];
       }
 
       return hash;
     }
 
-    size_t hashmapGetIndex(Hashmap *map, void *data, size_t dataSize)
+    uint32_t hashmapGetIndex(Hashmap *map, void *data, size_t dataSize)
     {
       return hash(data, dataSize) % map->nSlots;
     }
@@ -89,7 +89,6 @@ namespace Dirt
             free(map);
             return 0;
           }
-          map->map[i][j].nBytes = dataSize;
           map->map[i][j].isSet = false;
         }
       }
@@ -174,7 +173,6 @@ namespace Dirt
       }
 
       map->map[hashIndex][dupeIndex].isSet = true;
-      map->map[hashIndex][dupeIndex].nBytes = dataSize;
 
       return true;
     }
@@ -258,7 +256,6 @@ namespace Dirt
       {
         memset(map->map[hashIndex][dupeIndex].data, 0, map->dataSize);
         map->map[hashIndex][dupeIndex].isSet = false;
-        map->map[hashIndex][dupeIndex].nBytes = 0;
         map->nSet--;
         return true;
       }
@@ -266,11 +263,10 @@ namespace Dirt
       size_t j;
       for(j = dupeIndex+1; j < freeSpot; j++)
       {
-        memcpy(map->map[hashIndex][j-1].data, map->map[hashIndex][j].data, map->map[hashIndex][j].nBytes);
+        memcpy(map->map[hashIndex][j-1].data, map->map[hashIndex][j].data, map->dataSize);
       }
       memset(map->map[hashIndex][j].data, 0, map->dataSize);
       map->map[hashIndex][j].isSet = false;
-      map->map[hashIndex][j].nBytes = 0;
       return true;
     }
 
@@ -282,7 +278,7 @@ namespace Dirt
         size_t i;
         for(i = 0; i < map->nDupes; i++)
         {
-          if(Dirt::Memory::compareBytes(map->map[idx][i].data, data, map->map[idx][i].nBytes, dataSize))
+          if(Dirt::Memory::compareBytes(map->map[idx][i].data, data, map->dataSize, map->dataSize))
           {
             if(hashIndex)
             {

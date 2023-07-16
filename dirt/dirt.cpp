@@ -119,7 +119,8 @@ int main(int argc, char **argv)
 
   SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
   char* preselected = "W:\\test\\b\\b - Copy (3).txt";
-  hashmapInsert(globalState.selection, preselected, strlen(preselected));
+  size_t len = strlen(preselected);
+  hashmapInsert(globalState.selection, preselected, len);
   while(!globalState.quit)
   {
     renderScreenDirectoryViews(*globalState.currentScreen);
@@ -140,8 +141,6 @@ int main(int argc, char **argv)
 
 bool getFullPath(char *out, char* relPath, size_t outLen)
 {
-  char currentDir[MAX_PATH] = {0};
-  GetCurrentDirectoryA(MAX_PATH, currentDir);
   char fullPath[MAX_PATH] = {0};
   GetFullPathNameA(relPath, MAX_PATH, fullPath, 0);
   if(strlen(fullPath) > outLen)
@@ -271,7 +270,7 @@ char **getSelection(int &amountOut)
           }
         }
 
-        memcpy(selected[idx], globalState.selection->map[i][j].data, globalState.selection->map[i][j].nBytes);
+        memcpy(selected[idx], globalState.selection->map[i][j].data, globalState.selection->dataSize);
         idx++;
       }
     }
@@ -840,17 +839,11 @@ void styleView(HANDLE screenBuffer, DirectoryView view)
         &nSet);
     }
 
-    /* char currentDir[MAX_PATH] = {0}; */
-    /* GetCurrentDirectoryA(MAX_PATH, currentDir); */
-    /* if(!SetCurrentDirectory(view.path)) */
-    /* { */
-    /*   printf("Failed to set current directory (%lu)\n", GetLastError()); */
-    /*   return; */
-    /* } */
     char fullPath[MAX_PATH] = {0};
     getFullPath(fullPath, entry.cFileName, MAX_PATH);
 
-    if(hashmapContains(globalState.selection, fullPath, strlen(fullPath), 0, 0))
+    size_t len = strlen(fullPath);
+    if(hashmapContains(globalState.selection, fullPath, globalState.selection->dataSize, 0, 0))
     {
       FillConsoleOutputAttribute(
           screenBuffer,
@@ -859,11 +852,6 @@ void styleView(HANDLE screenBuffer, DirectoryView view)
           coords,
           &nSet);
     }
-    /* if(!SetCurrentDirectory(currentDir)) */
-    /* { */
-    /*   printf("Failed to set current directory (%lu)\n", GetLastError()); */
-    /*   return; */
-    /* } */
   }
 }
 

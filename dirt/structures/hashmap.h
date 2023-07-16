@@ -16,13 +16,12 @@ namespace Dirt
       struct Entry 
       {
         bool isSet = false;
-        size_t nBytes = 0;
         uint8_t *data = 0;
       } **map = 0;
     };
 
-    size_t hash(void *bytes, size_t len);
-    size_t hashmapGetIndex(Hashmap *map, void *data, size_t dataSize);
+    uint32_t hash(void *bytes, uint32_t len);
+    uint32_t hashmapGetIndex(Hashmap *map, void *data, size_t dataSize);
     Hashmap *hashmapCreate(size_t nSlots, size_t nDupes, size_t dataSize);
     void hashmapDestroy(Hashmap *map);
     bool hashmapInsert(Hashmap *map, void *data, size_t dataSize);
