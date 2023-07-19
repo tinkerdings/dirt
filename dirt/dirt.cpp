@@ -7,9 +7,12 @@
 #include <winnt.h>
 #include <winuser.h>
 
+#include <dirt/context/context.h>
 #include <dirt/structures/hashmap.h>
 #include <dirt/error/errorCode.h>
 #include <dirt/memory/memory.h>
+#include <dirt/input/input.h>
+#include <dirt/screen/screen.h>
 
 #define DIRT_SELECTIONBUF_MIN_DUPES 10
 #define DIRT_SELECTIONBUF_MIN_SIZE 512
@@ -17,70 +20,20 @@
 #define DIRT_CURSORINDICES_MIN_SIZE 32
 #define INPUTBUF_SIZE 3
 
-#define VK_Q 0x51
-#define VK_H 0x48
-#define VK_J 0x4A
-#define VK_K 0x4B
-#define VK_L 0x4C
-#define VK_M 0x4D
-#define VK_D 0x44
-
+using namespace Dirt::Context;
 using namespace Dirt::Memory;
 using namespace Dirt::Error;
 using namespace Dirt::Structures;
-
-struct DirectoryView
-{
-  SMALL_RECT renderRect = {0};
-  SHORT width = 0, height = 0;
-  size_t nEntries = 0;
-  size_t cursorIndex = 0;
-  char path[MAX_PATH] = {0};
-  WIN32_FIND_DATA *entries = 0;
-  struct CursorMapEntry
-  {
-    size_t cursorIndex;
-    char path[MAX_PATH] = {0};
-  };
-  Hashmap *cursorMap;
-};
-
-struct Screen
-{
-  HANDLE backBuffer, frontBuffer;
-  DirectoryView leftView, rightView, *active;
-};
-
-struct Input
-{
-  WORD prevKeyCode = -1;
-};
-
-struct GlobalState
-{
-  Screen *currentScreen = 0;
-  bool quit = false;
-  size_t maxEntriesInView = 128;
-  Hashmap *selection;
-  Input input;
-} globalState;
+using namespace Dirt::Input;
+using namespace Dirt::Screen;
 
 WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries);
-bool allocScreen(Screen &screen);
-bool initScreenDirectoryViews(Screen &screen);
-void renderScreenDirectoryViews(Screen &screen);
-void renderDirectoryView(Screen &screen, DirectoryView &view);
+bool initScreenDirectoryViews(ScreenData &screen);
 void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
-void styleScreenViews(Screen &screen);
-void styleView(HANDLE screenBuffer, DirectoryView view);
-void highlightLine(Screen &screen);
-void swapScreenBuffers(Screen &screen);
-void handleInput(Screen &screen, HANDLE stdinHandle);
-void incrementScreenCursorIndex(Screen &screen);
-void decrementScreenCursorIndex(Screen &screen);
-bool setActiveView(Screen &screen, DirectoryView &view);
+void styleScreenViews(ScreenData &screen);
+void incrementScreenCursorIndex(ScreenData &screen);
+void decrementScreenCursorIndex(ScreenData &screen);
 void setViewPath(DirectoryView &view, char *relPath);
-void clearScreen(Screen &screen);
 bool getFullPath(char *out, char* relPath, size_t outLen);
 bool removeEntryFromSelection(char *path);
 bool inputNoKeyRepeat(INPUT_RECORD *inputBuffer, uint32_t index, uint32_t size);
@@ -95,15 +48,23 @@ size_t getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dup
 int main(int argc, char **argv)
 {
   CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-  Screen firstScreen;
+
+  Context *context = (Context *)malloc(sizeof(Context));
+  if(!context)
+  {
+    printf("Failed to alloc context\n");
+    return 1;
+  }
+
+  ScreenData firstScreen;
   if(!allocScreen(firstScreen))
   {
     printf("Failed to allocate console screen buffer (%lu)\n", GetLastError());
     return 1;
   }
-  globalState.currentScreen = &firstScreen;
+  context->currentScreen = &firstScreen;
 
-  if(!(globalState.selection = 
+  if(!(context->selection = 
     hashmapCreate(
     DIRT_SELECTIONBUF_MIN_SIZE, 
     DIRT_SELECTIONBUF_MIN_DUPES, 
@@ -123,17 +84,17 @@ int main(int argc, char **argv)
   }
 
   SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
-  while(!globalState.quit)
+  while(!context->quit)
   {
-    renderScreenDirectoryViews(*globalState.currentScreen);
-    styleScreenViews(*globalState.currentScreen);
-    swapScreenBuffers(*globalState.currentScreen);
-    handleInput(*globalState.currentScreen, stdinHandle);
+    renderScreenDirectoryViews(*context->currentScreen);
+    styleScreenViews(*context->currentScreen);
+    swapScreenBuffers(*context->currentScreen);
+    handleInput(*context->currentScreen, stdinHandle);
   }
 
   // This is super slow, maybe not a point to do this, since exit.
-  /* hashmapDestroy(globalState.selection); */
-  /* hashmapDestroy(globalState.dirCursorIndices); */
+  /* hashmapDestroy(context->selection); */
+  /* hashmapDestroy(context->dirCursorIndices); */
   free(firstScreen.leftView.entries);
   free(firstScreen.rightView.entries);
 
@@ -155,70 +116,16 @@ bool getFullPath(char *out, char* relPath, size_t outLen)
   return true;
 }
 
-void clearScreen(Screen &screen)
-{
-  CHAR_INFO leftClear[MAX_PATH] = {0};
-  for(int i = 0; i < screen.leftView.width; i++)
-  {
-    leftClear[i] = {' ', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE};
-  }
-  for(int i = 0; i < screen.leftView.nEntries; i++)
-  {
-    COORD size {screen.leftView.width, 1};
-    COORD pos = {0, 0};
-    SMALL_RECT rect;
-    rect.Top = screen.leftView.renderRect.Top+i;
-    rect.Left = screen.leftView.renderRect.Left;
-    rect.Bottom = screen.leftView.renderRect.Bottom;
-    rect.Right = screen.leftView.renderRect.Right;
-    if(!WriteConsoleOutput(screen.backBuffer, leftClear, size, pos, &rect))
-    {
-      printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
-      return;
-    }
-    if(!WriteConsoleOutput(screen.frontBuffer, leftClear, size, pos, &rect))
-    {
-      printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
-      return;
-    }
-  }
-  CHAR_INFO rightClear[MAX_PATH] = {0};
-  for(int i = 0; i < screen.rightView.width; i++)
-  {
-    rightClear[i] = {' ', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE};
-  }
-  for(int i = 0; i < screen.rightView.nEntries; i++)
-  {
-    COORD size {screen.rightView.width, 1};
-    COORD pos = {0, 0};
-    SMALL_RECT rect;
-    rect.Top = screen.rightView.renderRect.Top+i;
-    rect.Left = screen.rightView.renderRect.Left;
-    rect.Bottom = screen.rightView.renderRect.Bottom;
-    rect.Right = screen.rightView.renderRect.Right;
-    if(!WriteConsoleOutput(screen.backBuffer, rightClear, size, pos, &rect))
-    {
-      printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
-      return;
-    }
-    if(!WriteConsoleOutput(screen.frontBuffer, rightClear, size, pos, &rect))
-    {
-      printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
-      return;
-    }
-  }
-}
-
 char **getSelection(int &amountOut)
 {
-  int bufSize = globalState.selection->nSlots;
+  int bufSize = context->selection->nSlots;
   char **selected = 0;
   if(!(selected = (char **)calloc(bufSize, sizeof(char *))))
   {
     printf("calloc failed to allocate array of strings for selected entries\n");
     return 0;
   }
-  for(int i = 0; i < globalState.selection->nSlots; i++)
+  for(int i = 0; i < context->selection->nSlots; i++)
   {
     if(!(selected[i] = (char *)calloc(MAX_PATH, sizeof(char))))
     {
@@ -234,13 +141,13 @@ char **getSelection(int &amountOut)
 
   int idx = 0;
 
-  for(int i = 0; i < globalState.selection->nSlots; i++)
+  for(int i = 0; i < context->selection->nSlots; i++)
   {
-    if(globalState.selection->map[i][0].isSet)
+    if(context->selection->map[i][0].isSet)
     {
-      for(int j = 0; j < globalState.selection->nDupes; j++)
+      for(int j = 0; j < context->selection->nDupes; j++)
       {
-        if(!globalState.selection->map[i][j].isSet)
+        if(!context->selection->map[i][j].isSet)
         {
           break;
         }
@@ -256,7 +163,7 @@ char **getSelection(int &amountOut)
           }
           else 
           {
-            for(int k = idx; k < globalState.selection->nSlots; k++)
+            for(int k = idx; k < context->selection->nSlots; k++)
             {
               if(!(selected[k] = (char *)calloc(MAX_PATH, sizeof(char))))
               {
@@ -272,7 +179,7 @@ char **getSelection(int &amountOut)
           }
         }
 
-        memcpy(selected[idx], globalState.selection->map[i][j].data, globalState.selection->dataSize);
+        memcpy(selected[idx], context->selection->map[i][j].data, context->selection->dataSize);
         idx++;
       }
     }
@@ -403,7 +310,7 @@ void freeSelection(char **selection, int amount)
 
 bool removeEntryFromSelection(char *path)
 {
-  if(!hashmapRemove(globalState.selection, path, MAX_PATH))
+  if(!hashmapRemove(context->selection, path, MAX_PATH))
   {
     printf("hashmapRemove failed\n");
     return false;
@@ -456,203 +363,12 @@ void printSelection()
 
   freeSelection(selection, nSelected);
 }
-void handleInput(Screen &screen, HANDLE stdinHandle)
-{
-  INPUT_RECORD inputBuffer[INPUTBUF_SIZE] = {0};
-  DWORD nRecordsRead = 0;
-  if(!ReadConsoleInput(
-    stdinHandle, inputBuffer, 3, &nRecordsRead))
-  {
-    printf("ReadConsoleInput failed (%lu)\n", GetLastError());
-    return;
-  }
-
-  for(int i = 0; i < nRecordsRead; i++)
-  {
-    WIN32_FIND_DATA &activeEntry = screen.active->entries[screen.active->cursorIndex];
-    switch(inputBuffer[i].EventType)
-    {
-      case(KEY_EVENT):
-      {
-        if(!inputBuffer[i].Event.KeyEvent.bKeyDown)
-        {
-          globalState.input.prevKeyCode = -1;
-          break;
-        }
-        switch(inputBuffer[i].Event.KeyEvent.wVirtualKeyCode)
-        {
-          case(VK_ESCAPE):
-          case(VK_Q):
-          {
-            globalState.quit = true;
-            return;
-          } break;
-          case(VK_DOWN):
-          case(VK_J):
-          {
-            incrementScreenCursorIndex(screen);
-          } break;
-          case(VK_UP):
-          case(VK_K):
-          {
-            decrementScreenCursorIndex(screen);
-          } break;
-          case(VK_TAB):
-          {
-            if(screen.active == &screen.leftView)
-            {
-              screen.active = &screen.rightView;
-            }
-            else 
-            {
-              screen.active = &screen.leftView;
-            }
-            if(!SetCurrentDirectory(screen.active->path))
-            {
-              printf("Failed to set current directory (%lu)\n", GetLastError());
-            }
-          } break;
-          case(VK_RETURN):
-          case(VK_RIGHT):
-          case(VK_L):
-          {
-            if(activeEntry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-            {
-              clearScreen(*globalState.currentScreen);
-              setViewPath(*screen.active, activeEntry.cFileName);
-            }
-            else
-            {
-              char fullPath[MAX_PATH] = {0};
-              if(!getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
-              {
-                printf("fullPath failed (%lu)\n", GetLastError());
-                break;
-              }
-              DWORD binaryType = -1;
-              // TODO: Error handling for file opening
-              if(GetBinaryTypeA(fullPath, &binaryType))
-              {
-                if(binaryType == SCS_32BIT_BINARY || binaryType == SCS_64BIT_BINARY)
-                {
-                  HANDLE exeHandle = CreateFileA(
-                    fullPath, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-                  if(exeHandle == INVALID_HANDLE_VALUE)
-                  {
-                    printf("CreateFileA failed (%lu)\n", GetLastError());
-                    break;
-                  }
-                  HANDLE exeMapping = CreateFileMappingA(
-                    exeHandle,
-                    0,
-                    PAGE_READONLY, 0, 0, 0);
-                  if(!exeMapping || exeMapping == INVALID_HANDLE_VALUE)
-                  {
-                    printf("CreateFileMappingA failed (%lu)\n", GetLastError());
-                    break;
-                  }
-                  void* exe = MapViewOfFile(
-                    exeMapping, FILE_MAP_READ, 0, 0, 0);
-                  PIMAGE_NT_HEADERS ntHeaders = ImageNtHeader(exe);
-                  switch(ntHeaders->OptionalHeader.Subsystem)
-                  {
-                    case(IMAGE_SUBSYSTEM_WINDOWS_CUI):
-                    {
-                      ShellExecuteA(0, 0, fullPath, 0, 0, SW_SHOW);
-                    } break;
-                    case(IMAGE_SUBSYSTEM_WINDOWS_GUI):
-                    {
-                      PROCESS_INFORMATION exeInfo;
-                      STARTUPINFOA startupInfo = {
-                        sizeof(STARTUPINFOA),
-                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                        STARTF_USESHOWWINDOW, SW_SHOW,
-                        0, 0, 0, 0, 0
-                      };
-                      CreateProcessA(fullPath, 
-                        0, 0, 0, false,
-                        NORMAL_PRIORITY_CLASS,
-                        0, 0,
-                        &startupInfo, &exeInfo);
-                    } break;
-                  }
-                }
-              }
-              else 
-              {
-                if(ShellExecuteA(0, 0, fullPath, 0, 0, SW_SHOW) <= (HINSTANCE)32)
-                {
-                  printf("ShellExecuteA failed (%lu)\n", GetLastError());
-                  break;
-                }
-              }
-            }
-          } break;
-          case(VK_BACK):
-          case(VK_LEFT):
-          case(VK_H):
-          {
-            clearScreen(*globalState.currentScreen);
-            setViewPath(*screen.active, "..");
-          } break;
-          case(VK_SPACE):
-          {
-            if(inputBuffer[i].Event.KeyEvent.dwControlKeyState == SHIFT_PRESSED)
-            {
-              clearAllSelection();
-              break;
-            }
-            if(inputNoKeyRepeat(inputBuffer, i, INPUTBUF_SIZE))
-            {
-              char fullPath[MAX_PATH] = {0};
-              if(!getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
-              {
-                printf("getFullPath failed (%lu)\n", GetLastError());
-                break;
-              }
-              if(hashmapContains(globalState.selection, fullPath, MAX_PATH, 0, 0))
-              {
-                removeEntryFromSelection(fullPath);
-              }
-              else 
-              {
-                int ret = hashmapInsert(globalState.selection, fullPath, MAX_PATH);
-                if(ret == DIRT_ERROR_ALLOCATION_FAILURE)
-                {
-                  printf("hashMapInsert failed with error DIRT_SEL_ALLOCATION_FAILURE (0x1)\n");
-                  break;
-                }
-                if(ret == DIRT_ERROR_INVALID_ENTRY)
-                {
-                  printf("hashMapInsert failed with error DIRT_SEL_INVALID_ENTRY (0x2), for path: %s\n", fullPath);
-                  break;
-                }
-              }
-            }
-          } break;
-          case(VK_M):
-          {
-            moveSelection();
-            clearAllSelection();
-          } break;
-          case(VK_D):
-          {
-            deleteSelection();
-            clearAllSelection();
-          } break;
-        }
-
-        globalState.input.prevKeyCode = inputBuffer[i].Event.KeyEvent.wVirtualKeyCode;
-      } break;
-    }
-  }
-}
 
 bool inputNoKeyRepeat(INPUT_RECORD *inputBuffer, uint32_t index, uint32_t size)
 {
   WORD keyCode = inputBuffer[index].Event.KeyEvent.wVirtualKeyCode;
 
-  if(keyCode == globalState.input.prevKeyCode)
+  if(keyCode == context->input.prevKeyCode)
   {
     return false;
   }
@@ -698,7 +414,7 @@ void setViewPath(DirectoryView &view, char *relPath)
 
   free(view.entries);
   view.entries = 0;
-  globalState.maxEntriesInView = 128;
+  context->maxEntriesInView = 128;
   view.entries = findDirectoryEntries(view.path, view.nEntries);
 
   view.cursorIndex = getViewCursorIndex(view, 0, 0);
@@ -811,46 +527,6 @@ bool initScreenDirectoryViews(Screen &screen)
   return true;
 }
 
-bool setActiveView(Screen &screen, DirectoryView &view)
-{
-  screen.active = &view;
-  if(!SetCurrentDirectory(screen.active->path))
-  {
-    printf("Failed to set current directory (%lu)\n", GetLastError());
-    return false;
-  }
-  return true;
-}
-
-bool allocScreen(Screen &screen)
-{
-  screen.backBuffer = CreateConsoleScreenBuffer(
-    GENERIC_READ | GENERIC_WRITE,
-    FILE_SHARE_READ | FILE_SHARE_WRITE,
-    NULL,
-    CONSOLE_TEXTMODE_BUFFER,
-    NULL);
-  screen.frontBuffer = CreateConsoleScreenBuffer(
-    GENERIC_READ | GENERIC_WRITE,
-    FILE_SHARE_READ | FILE_SHARE_WRITE,
-    NULL,
-    CONSOLE_TEXTMODE_BUFFER,
-    NULL);
-
-  if((screen.backBuffer == INVALID_HANDLE_VALUE) || (screen.frontBuffer == INVALID_HANDLE_VALUE))
-  {
-    return false;
-  }
-
-  return true;
-}
-
-void renderScreenDirectoryViews(Screen &screen)
-{
-  renderDirectoryView(screen, screen.leftView);
-  renderDirectoryView(screen, screen.rightView);
-}
-
 void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory)
 {
   size_t filenameLength = strlen(filename);
@@ -867,120 +543,6 @@ void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, 
   }
 }
 
-void styleView(HANDLE screenBuffer, DirectoryView view)
-{
-  for(int i = 0; i < view.nEntries; i++)
-  {
-    WIN32_FIND_DATA entry = view.entries[i];
-
-    WORD attributes = entry.dwFileAttributes;
-    
-    COORD coords;
-    coords.X = view.renderRect.Left;
-    coords.Y = i;
-    size_t filenameLength = strlen(view.entries[i].cFileName);
-    DWORD nSet = 0;
-
-    if(attributes & FILE_ATTRIBUTE_DIRECTORY)
-    {
-    FillConsoleOutputAttribute(
-        screenBuffer,
-        FOREGROUND_RED | FOREGROUND_GREEN,
-        filenameLength+1,
-        coords,
-        &nSet);
-    }
-
-    char fullPath[MAX_PATH] = {0};
-    getFullPath(fullPath, entry.cFileName, MAX_PATH);
-
-    size_t len = strlen(fullPath);
-    if(hashmapContains(globalState.selection, fullPath, globalState.selection->dataSize, 0, 0))
-    {
-      FillConsoleOutputAttribute(
-          screenBuffer,
-          FOREGROUND_GREEN,
-          filenameLength,
-          coords,
-          &nSet);
-    }
-  }
-}
-
-void highlightLine(Screen &screen)
-{
-  size_t cursorFilenameLength = strlen(screen.active->entries[screen.active->cursorIndex].cFileName);
-  size_t emptySpace = 
-    screen.active->width - cursorFilenameLength;
-  COORD coords;
-  DWORD nSet = 0;
-  coords.X = screen.active->renderRect.Left;
-  coords.Y = screen.active->cursorIndex;
-  WORD attribs = BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
-
-  char fullPath[MAX_PATH] = {0};
-  getFullPath(fullPath, screen.active->entries[screen.active->cursorIndex].cFileName, MAX_PATH);
-
-  if(hashmapContains(globalState.selection, fullPath, MAX_PATH, 0, 0))
-  {
-    attribs ^= FOREGROUND_RED | FOREGROUND_BLUE;
-  }
-
-  FillConsoleOutputAttribute(
-    screen.backBuffer,
-    attribs,
-    screen.active->width,
-    coords,
-    &nSet);
-
-  coords.X += cursorFilenameLength;
-  FillConsoleOutputCharacter(screen.backBuffer,
-    ' ',
-    emptySpace,
-    coords,
-    &nSet);
-}
-
-void styleScreenViews(Screen &screen)
-{
-  styleView(screen.backBuffer, screen.leftView);
-  styleView(screen.backBuffer, screen.rightView);
-  highlightLine(screen);
-}
-
-void swapScreenBuffers(Screen &screen)
-{
-  HANDLE temp = screen.frontBuffer;
-  screen.frontBuffer = screen.backBuffer;
-  screen.backBuffer = temp;
-  if(!SetConsoleActiveScreenBuffer(screen.frontBuffer))
-  {
-    printf("SetConsoleActiveScreenBuffer failed (%lu)\n", GetLastError());
-    return;
-  }
-}
-
-void renderDirectoryView(Screen &screen, DirectoryView &view)
-{
-  for(int i = 0; i < view.nEntries; i++)
-  {
-    CHAR_INFO filename[MAX_PATH] = {0};
-    bool isDirectory = (view.entries[i].dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
-    createFilenameCharInfoBuffer(filename, view.entries[i].cFileName, view.width, isDirectory);
-    COORD filenameSize {view.width, 1};
-    COORD filenamePos = {0, 0};
-    SMALL_RECT rect;
-    rect.Top = view.renderRect.Top+i;
-    rect.Left = view.renderRect.Left;
-    rect.Bottom = view.renderRect.Bottom;
-    rect.Right = view.renderRect.Right;
-    if(!WriteConsoleOutput(screen.backBuffer, filename, filenameSize, filenamePos, &rect))
-    {
-      printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
-      return;
-    }
-  }
-}
 
 // Searches specified directory for files and directories,
 // returns number of entries found, and stores entries in <entries> argument
@@ -992,7 +554,7 @@ WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
     return 0;
   }
   HANDLE entry = INVALID_HANDLE_VALUE;
-  WIN32_FIND_DATA *entries = (WIN32_FIND_DATA *)malloc(globalState.maxEntriesInView * sizeof(WIN32_FIND_DATA));
+  WIN32_FIND_DATA *entries = (WIN32_FIND_DATA *)malloc(context->maxEntriesInView * sizeof(WIN32_FIND_DATA));
   char fullPath[MAX_PATH] = {0};
   GetFullPathName(dirPath, MAX_PATH, fullPath, 0);
   strcat(fullPath, "\\*");
@@ -1022,7 +584,7 @@ WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
   BOOL findSuccess = 1;
   while(1)
   {
-    while((i < globalState.maxEntriesInView) && (findSuccess = FindNextFile(entry, &entries[i++]))){}
+    while((i < context->maxEntriesInView) && (findSuccess = FindNextFile(entry, &entries[i++]))){}
     DWORD error;
 
     if(!findSuccess && ((error = GetLastError()) != ERROR_NO_MORE_FILES))
@@ -1037,8 +599,8 @@ WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
       {
         break;
       }
-      globalState.maxEntriesInView *= 2;
-      WIN32_FIND_DATA *tmpPtr = (WIN32_FIND_DATA *)realloc(entries, globalState.maxEntriesInView);
+      context->maxEntriesInView *= 2;
+      WIN32_FIND_DATA *tmpPtr = (WIN32_FIND_DATA *)realloc(entries, context->maxEntriesInView);
       if(!tmpPtr)
       {
         printf("Failed to realloc entries in findDirectoryEntries\n");
