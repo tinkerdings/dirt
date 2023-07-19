@@ -34,12 +34,18 @@ struct DirectoryView
   SMALL_RECT renderRect = {0};
   SHORT width = 0, height = 0;
   size_t nEntries = 0;
-  size_t cursorIndex = 0;
   char path[MAX_PATH] = {0};
   WIN32_FIND_DATA *entries = 0;
+
+  struct Cursor
+  {
+    size_t directoryIndex = 0;
+    size_t viewIndex = 0;
+  } cursor;
+
   struct CursorMapEntry
   {
-    size_t cursorIndex;
+    Cursor entry;
     char path[MAX_PATH] = {0};
   };
   Hashmap *cursorMap;
@@ -61,6 +67,7 @@ struct GlobalState
   Screen *currentScreen = 0;
   bool quit = false;
   size_t maxEntriesInView = 128;
+  size_t nVisibleRows = 10;
   Hashmap *selection;
   Input input;
 } globalState;
@@ -162,7 +169,7 @@ void clearScreen(Screen &screen)
   {
     leftClear[i] = {' ', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE};
   }
-  for(int i = 0; i < screen.leftView.nEntries; i++)
+  for(int i = 0; i < globalState.nVisibleRows; i++)
   {
     COORD size {screen.leftView.width, 1};
     COORD pos = {0, 0};
@@ -187,7 +194,7 @@ void clearScreen(Screen &screen)
   {
     rightClear[i] = {' ', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE};
   }
-  for(int i = 0; i < screen.rightView.nEntries; i++)
+  for(int i = 0; i < globalState.nVisibleRows; i++)
   {
     COORD size {screen.rightView.width, 1};
     COORD pos = {0, 0};
@@ -469,7 +476,7 @@ void handleInput(Screen &screen, HANDLE stdinHandle)
 
   for(int i = 0; i < nRecordsRead; i++)
   {
-    WIN32_FIND_DATA &activeEntry = screen.active->entries[screen.active->cursorIndex];
+    WIN32_FIND_DATA &activeEntry = screen.active->entries[screen.active->cursorViewIndex];
     switch(inputBuffer[i].EventType)
     {
       case(KEY_EVENT):
@@ -672,7 +679,7 @@ void setViewPath(DirectoryView &view, char *relPath)
 
   if(view.path[0])
   {
-    size_t cursorIndex = view.cursorIndex;
+    size_t entryIndex = view.cursorIndex;
     DirectoryView::CursorMapEntry cursorIndexEntry;
     size_t viewPathLen = strlen(view.path);
     cursorIndexEntry.cursorIndex = cursorIndex;
@@ -711,10 +718,8 @@ void incrementScreenCursorIndex(Screen &screen)
   {
     screen.active->cursorIndex++;
   }
-  else 
-  {
-    screen.active->cursorIndex = 0;
-  }
+
+  screen.active->cursorViewIndex++;
 }
 void decrementScreenCursorIndex(Screen &screen)
 {
@@ -723,10 +728,7 @@ void decrementScreenCursorIndex(Screen &screen)
   {
     screen.active->cursorIndex--;
   }
-  else 
-  {
-    screen.active->cursorIndex = screen.active->nEntries-1;
-  }
+  screen.active->cursorViewIndex--;
 }
 
 size_t getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut)
@@ -776,7 +778,7 @@ bool initScreenDirectoryViews(Screen &screen)
   strcpy(screen.leftView.path, currentDir);
   screen.leftView.renderRect.Top = 0;
   screen.leftView.renderRect.Left = 0;
-  screen.leftView.renderRect.Bottom = 80;
+  screen.leftView.renderRect.Bottom = globalState.nVisibleRows;
   screen.leftView.renderRect.Right = 40;
   screen.leftView.width = screen.leftView.renderRect.Right - screen.leftView.renderRect.Left;
   screen.leftView.height = screen.leftView.renderRect.Bottom - screen.leftView.renderRect.Top;
@@ -795,7 +797,7 @@ bool initScreenDirectoryViews(Screen &screen)
   strcpy(screen.rightView.path, "C:\\");
   screen.rightView.renderRect.Top = 0;
   screen.rightView.renderRect.Left = 42;
-  screen.rightView.renderRect.Bottom = 80;
+  screen.rightView.renderRect.Bottom = globalState.nVisibleRows;
   screen.rightView.renderRect.Right = 82;
   screen.rightView.width = screen.rightView.renderRect.Right - screen.rightView.renderRect.Left;
   screen.rightView.height = screen.rightView.renderRect.Bottom - screen.rightView.renderRect.Top;
@@ -847,6 +849,7 @@ bool allocScreen(Screen &screen)
 
 void renderScreenDirectoryViews(Screen &screen)
 {
+  clearScreen(screen);
   renderDirectoryView(screen, screen.leftView);
   renderDirectoryView(screen, screen.rightView);
 }
@@ -869,7 +872,7 @@ void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, 
 
 void styleView(HANDLE screenBuffer, DirectoryView view)
 {
-  for(int i = 0; i < view.nEntries; i++)
+  for(int i = 0; i < globalState.nVisibleRows; i++)
   {
     WIN32_FIND_DATA entry = view.entries[i];
 
@@ -915,7 +918,7 @@ void highlightLine(Screen &screen)
   COORD coords;
   DWORD nSet = 0;
   coords.X = screen.active->renderRect.Left;
-  coords.Y = screen.active->cursorIndex;
+  coords.Y = (screen.active->cursorViewIndex < globalState.nVisibleRows) ? screen.active->cursorViewIndex : globalState.nVisibleRows-1;
   WORD attribs = BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
 
   char fullPath[MAX_PATH] = {0};
@@ -962,7 +965,9 @@ void swapScreenBuffers(Screen &screen)
 
 void renderDirectoryView(Screen &screen, DirectoryView &view)
 {
-  for(int i = 0; i < view.nEntries; i++)
+  size_t startIndex = (((int64_t)view.cursorIndex - (int64_t)(globalState.nVisibleRows-1)) < 0) ? 0 : (view.cursorIndex - (globalState.nVisibleRows-1));
+  size_t end = (globalState.nVisibleRows+startIndex <= view.nEntries) ? (startIndex+globalState.nVisibleRows) : view.nEntries;
+  for(size_t i = startIndex; i < end; i++)
   {
     CHAR_INFO filename[MAX_PATH] = {0};
     bool isDirectory = (view.entries[i].dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
@@ -970,11 +975,16 @@ void renderDirectoryView(Screen &screen, DirectoryView &view)
     COORD filenameSize {view.width, 1};
     COORD filenamePos = {0, 0};
     SMALL_RECT rect;
-    rect.Top = view.renderRect.Top+i;
+    rect.Top = view.renderRect.Top+i-startIndex;
     rect.Left = view.renderRect.Left;
-    rect.Bottom = view.renderRect.Bottom;
+    rect.Bottom = rect.Top;
     rect.Right = view.renderRect.Right;
-    if(!WriteConsoleOutput(screen.backBuffer, filename, filenameSize, filenamePos, &rect))
+    if(!WriteConsoleOutput(
+      screen.backBuffer,
+      filename,
+      filenameSize,
+      filenamePos,
+      &rect))
     {
       printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
       return;
