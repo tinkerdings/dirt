@@ -65,7 +65,7 @@ namespace Dirt
       {
         if(!(map->map[i] = (Hashmap::Entry *)calloc(nDupes, sizeof(Hashmap::Entry))))
         {
-          for(size_t e = i; i >= 0; e--)
+          for(size_t e = i; e >= 0; e--)
           {
             free(map->map[e]);
           }
