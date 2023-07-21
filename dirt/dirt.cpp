@@ -20,7 +20,7 @@ int main(int argc, char **argv)
 {
   CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 
-  Context *context = (Context *)malloc(sizeof(Context));
+  Context *context = (Context *)calloc(1, sizeof(Context));
   if(!context)
   {
     printf("Failed to alloc context\n");
