@@ -27,7 +27,9 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  ScreenData firstScreen;
+  context->maxEntriesInView = 128;
+
+  Screen::ScreenData firstScreen;
   if(!allocScreen(firstScreen))
   {
     printf("Failed to allocate console screen buffer (%lu)\n", GetLastError());
@@ -45,7 +47,7 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  initScreenDirectoryViews(firstScreen);
+  initScreenDirectoryViews(context, firstScreen);
 
   HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
   if(stdinHandle == INVALID_HANDLE_VALUE)
@@ -58,9 +60,9 @@ int main(int argc, char **argv)
   while(!context->quit)
   {
     renderScreenDirectoryViews(*context->currentScreen);
-    styleScreenViews(*context->currentScreen);
-    swapScreenBuffers(*context->currentScreen);
-    handleInput(*context->currentScreen, stdinHandle);
+    styleScreenViews(context, *(context->currentScreen));
+    swapScreenBuffers(*(context->currentScreen));
+    Input::handleInput(context, *(context->currentScreen), stdinHandle);
   }
 
   // This is super slow, maybe not a point to do this, since exit.
@@ -68,6 +70,7 @@ int main(int argc, char **argv)
   /* hashmapDestroy(context->dirCursorIndices); */
   free(firstScreen.leftView.entries);
   free(firstScreen.rightView.entries);
+  free(context);
 
   return 0;
 }

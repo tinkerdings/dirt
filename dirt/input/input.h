@@ -21,11 +21,6 @@ namespace Dirt
 {
   namespace Input
   {
-    struct InputData
-    {
-      WORD prevKeyCode = -1;
-    };
-
     void handleInput(Dirt::Context *context, ScreenData &screen, HANDLE stdinHandle);
     bool inputNoKeyRepeat(Dirt::Context *context, INPUT_RECORD *inputBuffer, uint32_t index, uint32_t size);
   }

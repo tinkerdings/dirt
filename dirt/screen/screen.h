@@ -2,6 +2,7 @@
 #define SCREEN_H
 
 #include <windows.h>
+#include <dirt/context/context.h>
 #include <dirt/structures/hashmap.h>
 
 #define DIRT_CURSORINDICES_MIN_DUPES 10
@@ -37,18 +38,18 @@ namespace Dirt
 
 
     bool allocScreen(ScreenData &screen);
-    bool initScreenDirectoryViews(ScreenData &screen);
-    void setViewPath(DirectoryView &view, char *relPath);
+    bool initScreenDirectoryViews(Context *context, ScreenData &screen);
+    void setViewPath(Context *context, DirectoryView &view, char *relPath);
     void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
     void renderScreenDirectoryViews(ScreenData &screen);
     void renderDirectoryView(ScreenData &screen, DirectoryView &view);
-    void styleView(HANDLE screenBuffer, DirectoryView view);
-    void highlightLine(ScreenData &screen);
+    void styleView(Context *context, HANDLE screenBuffer, DirectoryView view);
+    void highlightLine(Context *context, ScreenData &screen);
     void swapScreenBuffers(ScreenData &screen);
     bool setActiveView(ScreenData &screen, DirectoryView &view);
     void clearScreen(ScreenData &screen);
     size_t getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut);
-    void styleScreenViews(ScreenData &screen);
+    void styleScreenViews(Context *context, ScreenData &screen);
     void incrementScreenCursorIndex(ScreenData &screen);
     void decrementScreenCursorIndex(ScreenData &screen);
   }

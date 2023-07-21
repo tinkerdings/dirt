@@ -1,10 +1,14 @@
+#include <dirt/memory/memory.h>
+#include <dirt/context/context.h>
+#include <dirt/entry/entry.h>
 #include <dirt/screen/screen.h>
+#include <stdio.h>
 
 namespace Dirt
 {
   namespace Screen
   {
-    void clearScreen(Screen &screen)
+    void clearScreen(ScreenData &screen)
     {
       CHAR_INFO leftClear[MAX_PATH] = {0};
       for(int i = 0; i < screen.leftView.width; i++)
@@ -59,7 +63,7 @@ namespace Dirt
     }
 
 
-    bool allocScreen(Screen &screen)
+    bool allocScreen(ScreenData &screen)
     {
       screen.backBuffer = CreateConsoleScreenBuffer(
         GENERIC_READ | GENERIC_WRITE,
@@ -83,14 +87,14 @@ namespace Dirt
     }
 
 
-    void renderScreenDirectoryViews(Screen &screen)
+    void renderScreenDirectoryViews(ScreenData &screen)
     {
       renderDirectoryView(screen, screen.leftView);
       renderDirectoryView(screen, screen.rightView);
     }
 
 
-    void renderDirectoryView(Screen &screen, DirectoryView &view)
+    void renderDirectoryView(ScreenData &screen, DirectoryView &view)
     {
       for(int i = 0; i < view.nEntries; i++)
       {
@@ -112,7 +116,7 @@ namespace Dirt
       }
     }
 
-    void styleView(HANDLE screenBuffer, DirectoryView view)
+    void styleView(Context *context, HANDLE screenBuffer, DirectoryView view)
     {
       for(int i = 0; i < view.nEntries; i++)
       {
@@ -137,7 +141,7 @@ namespace Dirt
         }
 
         char fullPath[MAX_PATH] = {0};
-        getFullPath(fullPath, entry.cFileName, MAX_PATH);
+        Entry::getFullPath(fullPath, entry.cFileName, MAX_PATH);
 
         size_t len = strlen(fullPath);
         if(hashmapContains(context->selection, fullPath, context->selection->dataSize, 0, 0))
@@ -152,7 +156,7 @@ namespace Dirt
       }
     }
 
-    void highlightLine(Screen &screen)
+    void highlightLine(Context *context, ScreenData &screen)
     {
       size_t cursorFilenameLength = strlen(screen.active->entries[screen.active->cursorIndex].cFileName);
       size_t emptySpace = 
@@ -164,7 +168,7 @@ namespace Dirt
       WORD attribs = BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
 
       char fullPath[MAX_PATH] = {0};
-      getFullPath(fullPath, screen.active->entries[screen.active->cursorIndex].cFileName, MAX_PATH);
+      Entry::getFullPath(fullPath, screen.active->entries[screen.active->cursorIndex].cFileName, MAX_PATH);
 
       if(hashmapContains(context->selection, fullPath, MAX_PATH, 0, 0))
       {
@@ -186,14 +190,14 @@ namespace Dirt
         &nSet);
     }
 
-    void styleScreenViews(Screen &screen)
+    void styleScreenViews(Context *context, ScreenData &screen)
     {
-      styleView(screen.backBuffer, screen.leftView);
-      styleView(screen.backBuffer, screen.rightView);
-      highlightLine(screen);
+      styleView(context, screen.backBuffer, screen.leftView);
+      styleView(context, screen.backBuffer, screen.rightView);
+      highlightLine(context, screen);
     }
 
-    void swapScreenBuffers(Screen &screen)
+    void swapScreenBuffers(ScreenData &screen)
     {
       HANDLE temp = screen.frontBuffer;
       screen.frontBuffer = screen.backBuffer;
@@ -205,7 +209,7 @@ namespace Dirt
       }
     }
 
-    bool setActiveView(Screen &screen, DirectoryView &view)
+    bool setActiveView(ScreenData &screen, DirectoryView &view)
     {
       screen.active = &view;
       if(!SetCurrentDirectory(screen.active->path))
@@ -216,7 +220,7 @@ namespace Dirt
       return true;
     }
 
-    bool initScreenDirectoryViews(Screen &screen)
+    bool initScreenDirectoryViews(Context *context, ScreenData &screen)
     {
       char currentDir[MAX_PATH] = {0};
       if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
@@ -236,7 +240,7 @@ namespace Dirt
       screen.leftView.renderRect.Right = 40;
       screen.leftView.width = screen.leftView.renderRect.Right - screen.leftView.renderRect.Left;
       screen.leftView.height = screen.leftView.renderRect.Bottom - screen.leftView.renderRect.Top;
-      screen.leftView.entries = findDirectoryEntries(screen.leftView.path, screen.leftView.nEntries);
+      screen.leftView.entries = Entry::findDirectoryEntries(context, screen.leftView.path, screen.leftView.nEntries);
       if(!screen.leftView.entries)
       {
         printf("findDirectoryEntries failed (%lu)\n", GetLastError());
@@ -255,7 +259,7 @@ namespace Dirt
       screen.rightView.renderRect.Right = 82;
       screen.rightView.width = screen.rightView.renderRect.Right - screen.rightView.renderRect.Left;
       screen.rightView.height = screen.rightView.renderRect.Bottom - screen.rightView.renderRect.Top;
-      screen.rightView.entries = findDirectoryEntries(screen.rightView.path, screen.rightView.nEntries);
+      screen.rightView.entries = Entry::findDirectoryEntries(context, screen.rightView.path, screen.rightView.nEntries);
       if(!screen.rightView.entries)
       {
         printf("findDirectoryEntries failed (%lu)\n", GetLastError());
@@ -267,10 +271,10 @@ namespace Dirt
       return true;
     }
 
-    void setViewPath(DirectoryView &view, char *relPath)
+    void setViewPath(Context *context, DirectoryView &view, char *relPath)
     {
       char fullPath[MAX_PATH] = {0};
-      getFullPath(fullPath, relPath, MAX_PATH);
+      Entry::getFullPath(fullPath, relPath, MAX_PATH);
 
       if(!SetCurrentDirectory(fullPath))
       {
@@ -306,7 +310,7 @@ namespace Dirt
       free(view.entries);
       view.entries = 0;
       context->maxEntriesInView = 128;
-      view.entries = findDirectoryEntries(view.path, view.nEntries);
+      view.entries = Entry::findDirectoryEntries(context, view.path, view.nEntries);
 
       view.cursorIndex = getViewCursorIndex(view, 0, 0);
     }
@@ -340,7 +344,7 @@ namespace Dirt
           bool ret;
           size_t entryPathLen = strlen(entry->path);
           size_t viewPathLen = strlen(view.path);
-          if((ret = Dirt::Memory::compareBytes(entry->path, view.path, entryPathLen, viewPathLen)))
+          if((ret = Memory::compareBytes(entry->path, view.path, entryPathLen, viewPathLen)))
           {
             if(hashIndexOut)
             {
@@ -358,7 +362,7 @@ namespace Dirt
       return 0;
     }
 
-    void incrementScreenCursorIndex(Screen &screen)
+    void incrementScreenCursorIndex(ScreenData &screen)
     {
       uint32_t currentIndex = screen.active->cursorIndex;
       if(currentIndex < (screen.active->nEntries-1))
@@ -371,7 +375,7 @@ namespace Dirt
       }
     }
 
-    void decrementScreenCursorIndex(Screen &screen)
+    void decrementScreenCursorIndex(ScreenData &screen)
     {
       uint32_t currentIndex = screen.active->cursorIndex;
       if(currentIndex > 0)

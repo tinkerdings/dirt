@@ -1,8 +1,18 @@
+#include <dirt/context/context.h>
 #include <dirt/entry/entry.h>
+#include <dirt/structures/hashmap.h>
+#include <dirt/error/errorCode.h>
+#include <shlwapi.h>
 #include <windows.h>
+#include <stdio.h>
 
 namespace Dirt
 {
+  namespace Structures
+  {
+    struct Hashmap;
+  }
+
   namespace Entry
   {
     bool getFullPath(char *out, char* relPath, size_t outLen)
@@ -21,7 +31,7 @@ namespace Dirt
 
     // Searches specified directory for files and directories,
     // returns number of entries found, and stores entries in <entries> argument
-    WIN32_FIND_DATA *findDirectoryEntries(char *dirPath, size_t &nEntries)
+    WIN32_FIND_DATA *findDirectoryEntries(Context *context, char *dirPath, size_t &nEntries)
     {
       if((strlen(dirPath)+3) > MAX_PATH)
       {
@@ -95,9 +105,9 @@ namespace Dirt
       return entries;
     }
 
-    bool removeEntryFromSelection(char *path)
+    bool removeEntryFromSelection(Context *context, char *path)
     {
-      if(!hashmapRemove(context->selection, path, MAX_PATH))
+      if(!Structures::hashmapRemove(context->selection, path, MAX_PATH))
       {
         printf("hashmapRemove failed\n");
         return false;
@@ -106,7 +116,7 @@ namespace Dirt
       return true;
     }
 
-    char **getSelection(int &amountOut)
+    char **getSelection(Context *context, int &amountOut)
     {
       int bufSize = context->selection->nSlots;
       char **selected = 0;
@@ -148,7 +158,7 @@ namespace Dirt
               if(!tmpPtr)
               {
                 printf("realloc failed to allocate array of strings for selected entries\n");
-                errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+                Error::errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
                 return 0;
               }
               else 
@@ -190,10 +200,10 @@ namespace Dirt
       selection = 0;
     }
 
-    void printSelection()
+    void printSelection(Context *context)
     {
       int nSelected = 0;
-      char **selection = getSelection(nSelected);
+      char **selection = getSelection(context, nSelected);
       if(!selection)
       {
         printf("No selection\n");
@@ -213,10 +223,10 @@ namespace Dirt
       freeSelection(selection, nSelected);
     }
 
-    bool moveSelection()
+    bool moveSelection(Context *context)
     {
       int nSelected = 0;
-      char **selection = getSelection(nSelected);
+      char **selection = getSelection(context, nSelected);
 
       char currentDir[MAX_PATH] = {0};
       if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
@@ -252,10 +262,10 @@ namespace Dirt
       return true;
     }
 
-    bool deleteSelection()
+    bool deleteSelection(Context *context)
     {
       int nSelected = 0;
-      char **selection = getSelection(nSelected);
+      char **selection = getSelection(context, nSelected);
 
       char currentDir[MAX_PATH] = {0};
       if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
@@ -321,10 +331,10 @@ namespace Dirt
       return true;
     }
 
-    bool clearAllSelection()
+    bool clearAllSelection(Context *context)
     {
       int nSelected = 0;
-      char **selection = getSelection(nSelected);
+      char **selection = getSelection(context, nSelected);
 
       if(!selection)
       {
@@ -334,7 +344,7 @@ namespace Dirt
 
       for(int i = 0; i < nSelected; i++)
       {
-        if(!removeEntryFromSelection(selection[i]))
+        if(!removeEntryFromSelection(context, selection[i]))
         {
           return false;
         }

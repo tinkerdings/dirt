@@ -75,12 +75,12 @@ namespace Dirt
                 if(activeEntry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
                 {
                   clearScreen(*context->currentScreen);
-                  setViewPath(*screen.active, activeEntry.cFileName);
+                  setViewPath(context, *screen.active, activeEntry.cFileName);
                 }
                 else
                 {
                   char fullPath[MAX_PATH] = {0};
-                  if(!Dirt::Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
+                  if(!Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
                   {
                     printf("fullPath failed (%lu)\n", GetLastError());
                     break;
@@ -149,26 +149,26 @@ namespace Dirt
               case(VK_H):
               {
                 clearScreen(*context->currentScreen);
-                setViewPath(*screen.active, "..");
+                setViewPath(context, *screen.active, "..");
               } break;
               case(VK_SPACE):
               {
                 if(inputBuffer[i].Event.KeyEvent.dwControlKeyState == SHIFT_PRESSED)
                 {
-                  Dirt::Entry::clearAllSelection();
+                  Dirt::Entry::clearAllSelection(context);
                   break;
                 }
                 if(inputNoKeyRepeat(context, inputBuffer, i, INPUTBUF_SIZE))
                 {
                   char fullPath[MAX_PATH] = {0};
-                  if(!Dirt::Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
+                  if(!Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
                   {
                     printf("getFullPath failed (%lu)\n", GetLastError());
                     break;
                   }
                   if(hashmapContains(context->selection, fullPath, MAX_PATH, 0, 0))
                   {
-                    Dirt::Entry::removeEntryFromSelection(fullPath);
+                    Dirt::Entry::removeEntryFromSelection(context, fullPath);
                   }
                   else 
                   {
@@ -188,17 +188,18 @@ namespace Dirt
               } break;
               case(VK_M):
               {
-                Dirt::Entry::moveSelection();
-                Dirt::Entry::clearAllSelection();
+                Dirt::Entry::moveSelection(context);
+                Dirt::Entry::clearAllSelection(context);
               } break;
               case(VK_D):
               {
-                Dirt::Entry::deleteSelection();
-                Dirt::Entry::clearAllSelection();
+                Dirt::Entry::deleteSelection(context);
+                Dirt::Entry::clearAllSelection(context);
               } break;
             }
 
-            context->input.prevKeyCode = inputBuffer[i].Event.KeyEvent.wVirtualKeyCode;
+            context->input.prevKeyCode = 
+                inputBuffer[i].Event.KeyEvent.wVirtualKeyCode;
           } break;
         }
       }

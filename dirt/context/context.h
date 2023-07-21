@@ -1,25 +1,35 @@
 #ifndef CONTEXT_H
 #define CONTEXT_H
 
-#include <dirt/structures/hashmap.h>
-#include <dirt/input/input.h>
-#include <dirt/screen/screen.h>
+#include <windows.h>
 
 #define DIRT_SELECTIONBUF_MIN_DUPES 10
 #define DIRT_SELECTIONBUF_MIN_SIZE 512
 
-using namespace Dirt;
-
 namespace Dirt
 {
+  // Forward declarations
+  namespace Structures
+  {
+    struct Hashmap;
+  } // namespace Structures;
+  namespace Screen
+  {
+    struct ScreenData;
+  } // namespace Screen;
+
   struct Context
   {
-    ScreenData *currentScreen = 0;
-    bool quit = false;
-    size_t maxEntriesInView = 128;
-    Hashmap *selection;
-    Input::InputData input;
+    Screen::ScreenData *currentScreen = 0;
+    bool quit;
+    size_t maxEntriesInView;
+    Structures::Hashmap *selection;
+    struct InputData
+    {
+      WORD prevKeyCode = -1;
+    };
+    InputData input;
   };
-}
+} // namespace Dirt;
 
 #endif // CONTEXT_H
