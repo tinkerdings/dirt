@@ -4,6 +4,9 @@
 #include <windows.h>
 #include <dirt/structures/hashmap.h>
 
+#define DIRT_CURSORINDICES_MIN_DUPES 10
+#define DIRT_CURSORINDICES_MIN_SIZE 32
+
 using namespace Dirt::Structures;
 
 namespace Dirt
@@ -34,6 +37,9 @@ namespace Dirt
 
 
     bool allocScreen(ScreenData &screen);
+    bool initScreenDirectoryViews(ScreenData &screen);
+    void setViewPath(DirectoryView &view, char *relPath);
+    void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
     void renderScreenDirectoryViews(ScreenData &screen);
     void renderDirectoryView(ScreenData &screen, DirectoryView &view);
     void styleView(HANDLE screenBuffer, DirectoryView view);
@@ -41,6 +47,10 @@ namespace Dirt
     void swapScreenBuffers(ScreenData &screen);
     bool setActiveView(ScreenData &screen, DirectoryView &view);
     void clearScreen(ScreenData &screen);
+    size_t getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut);
+    void styleScreenViews(ScreenData &screen);
+    void incrementScreenCursorIndex(ScreenData &screen);
+    void decrementScreenCursorIndex(ScreenData &screen);
   }
 }
 

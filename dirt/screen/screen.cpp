@@ -215,5 +215,173 @@ namespace Dirt
       }
       return true;
     }
-  }
-}
+
+    bool initScreenDirectoryViews(Screen &screen)
+    {
+      char currentDir[MAX_PATH] = {0};
+      if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
+      {
+        printf("initScreenDirectoryViews:GetCurrentDirectory failed (%lu)\n", GetLastError());
+        return false;
+      }
+      screen.leftView.cursorMap = 
+        hashmapCreate(
+          DIRT_CURSORINDICES_MIN_SIZE,
+          DIRT_CURSORINDICES_MIN_DUPES,
+          sizeof(DirectoryView::CursorMapEntry));
+      strcpy(screen.leftView.path, currentDir);
+      screen.leftView.renderRect.Top = 0;
+      screen.leftView.renderRect.Left = 0;
+      screen.leftView.renderRect.Bottom = 80;
+      screen.leftView.renderRect.Right = 40;
+      screen.leftView.width = screen.leftView.renderRect.Right - screen.leftView.renderRect.Left;
+      screen.leftView.height = screen.leftView.renderRect.Bottom - screen.leftView.renderRect.Top;
+      screen.leftView.entries = findDirectoryEntries(screen.leftView.path, screen.leftView.nEntries);
+      if(!screen.leftView.entries)
+      {
+        printf("findDirectoryEntries failed (%lu)\n", GetLastError());
+        return false;
+      }
+
+      screen.rightView.cursorMap = 
+        hashmapCreate(
+            DIRT_CURSORINDICES_MIN_SIZE,
+            DIRT_CURSORINDICES_MIN_DUPES,
+            sizeof(DirectoryView::CursorMapEntry));
+      strcpy(screen.rightView.path, "C:\\");
+      screen.rightView.renderRect.Top = 0;
+      screen.rightView.renderRect.Left = 42;
+      screen.rightView.renderRect.Bottom = 80;
+      screen.rightView.renderRect.Right = 82;
+      screen.rightView.width = screen.rightView.renderRect.Right - screen.rightView.renderRect.Left;
+      screen.rightView.height = screen.rightView.renderRect.Bottom - screen.rightView.renderRect.Top;
+      screen.rightView.entries = findDirectoryEntries(screen.rightView.path, screen.rightView.nEntries);
+      if(!screen.rightView.entries)
+      {
+        printf("findDirectoryEntries failed (%lu)\n", GetLastError());
+        return false;
+      }
+
+      setActiveView(screen, screen.leftView);
+
+      return true;
+    }
+
+    void setViewPath(DirectoryView &view, char *relPath)
+    {
+      char fullPath[MAX_PATH] = {0};
+      getFullPath(fullPath, relPath, MAX_PATH);
+
+      if(!SetCurrentDirectory(fullPath))
+      {
+        printf("Failed to set current directory (%lu)\n", GetLastError());
+      }
+
+      if(view.path[0])
+      {
+        size_t cursorIndex = view.cursorIndex;
+        DirectoryView::CursorMapEntry cursorIndexEntry;
+        size_t viewPathLen = strlen(view.path);
+        cursorIndexEntry.cursorIndex = cursorIndex;
+        memcpy(cursorIndexEntry.path, view.path, viewPathLen);
+
+        size_t hashIndex, dupeIndex;
+        if(getViewCursorIndex(view, &hashIndex, &dupeIndex))
+        {
+          hashmapDirectWrite(view.cursorMap, &cursorIndexEntry, hashIndex, dupeIndex, sizeof(DirectoryView::CursorMapEntry));
+        }
+        else 
+        {
+          Dirt::Structures::hashmapInsertAtKey(
+            view.cursorMap,
+            view.path,
+            &cursorIndexEntry,
+            viewPathLen,
+            sizeof(DirectoryView::CursorMapEntry));
+        }
+      }
+
+      strcpy(view.path, fullPath);
+
+      free(view.entries);
+      view.entries = 0;
+      context->maxEntriesInView = 128;
+      view.entries = findDirectoryEntries(view.path, view.nEntries);
+
+      view.cursorIndex = getViewCursorIndex(view, 0, 0);
+    }
+
+    void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory)
+    {
+      size_t filenameLength = strlen(filename);
+      int i = 0;
+      for(; i < filenameLength; i++)
+      {
+        CHAR_INFO ci = {(WCHAR)filename[i], FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE };
+        buffer[i] = ci;
+      }
+      if(isDirectory)
+      {
+        CHAR_INFO ci = {'/', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE };
+        buffer[i] = ci;
+      }
+    }
+
+    size_t getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut)
+    {
+      size_t viewPathLen = strlen(view.path);
+      size_t hashIndex = hashmapGetIndex(view.cursorMap, view.path, viewPathLen);
+
+      if(view.cursorMap->map[hashIndex][0].isSet)
+      {
+        for(size_t i = 0; i < view.cursorMap->nDupes; i++)
+        {
+          DirectoryView::CursorMapEntry *entry = (DirectoryView::CursorMapEntry *)view.cursorMap->map[hashIndex][i].data;
+          bool ret;
+          size_t entryPathLen = strlen(entry->path);
+          size_t viewPathLen = strlen(view.path);
+          if((ret = Dirt::Memory::compareBytes(entry->path, view.path, entryPathLen, viewPathLen)))
+          {
+            if(hashIndexOut)
+            {
+              *hashIndexOut = hashIndex;
+            }
+            if(dupeIndexOut)
+            {
+              *dupeIndexOut = i;
+            }
+            return entry->cursorIndex;
+          }
+        }
+      }
+
+      return 0;
+    }
+
+    void incrementScreenCursorIndex(Screen &screen)
+    {
+      uint32_t currentIndex = screen.active->cursorIndex;
+      if(currentIndex < (screen.active->nEntries-1))
+      {
+        screen.active->cursorIndex++;
+      }
+      else 
+      {
+        screen.active->cursorIndex = 0;
+      }
+    }
+
+    void decrementScreenCursorIndex(Screen &screen)
+    {
+      uint32_t currentIndex = screen.active->cursorIndex;
+      if(currentIndex > 0)
+      {
+        screen.active->cursorIndex--;
+      }
+      else 
+      {
+        screen.active->cursorIndex = screen.active->nEntries-1;
+      }
+    }
+  } // namespace Screen
+} // namespace Dirt

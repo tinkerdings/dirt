@@ -5,23 +5,21 @@
 #include <dirt/input/input.h>
 #include <dirt/screen/screen.h>
 
-using namespace Dirt::Input;
-using namespace Dirt::Structures;
-using namespace Dirt::Screen;
+#define DIRT_SELECTIONBUF_MIN_DUPES 10
+#define DIRT_SELECTIONBUF_MIN_SIZE 512
+
+using namespace Dirt;
 
 namespace Dirt
 {
-  namespace Context
+  struct Context
   {
-    struct Context
-    {
-      ScreenData *currentScreen = 0;
-      bool quit = false;
-      size_t maxEntriesInView = 128;
-      Hashmap *selection;
-      InputData input;
-    };
-  }
+    ScreenData *currentScreen = 0;
+    bool quit = false;
+    size_t maxEntriesInView = 128;
+    Hashmap *selection;
+    Input::InputData input;
+  };
 }
 
 #endif // CONTEXT_H
