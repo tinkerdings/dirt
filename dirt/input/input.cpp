@@ -25,7 +25,7 @@ namespace Dirt
 
       for(int i = 0; i < nRecordsRead; i++)
       {
-        WIN32_FIND_DATA &activeEntry = screen.active->entries[screen.active->cursorIndex];
+        WIN32_FIND_DATA &activeEntry = screen.active->entries[screen.active->cursorIndex.actualIndex];
         switch(inputBuffer[i].EventType)
         {
           case(KEY_EVENT):

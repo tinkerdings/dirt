@@ -15,7 +15,7 @@ namespace Dirt
       {
         leftClear[i] = {' ', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE};
       }
-      for(int i = 0; i < screen.leftView.nEntries; i++)
+      for(int i = 0; i < screen.leftView.height; i++)
       {
         COORD size {screen.leftView.width, 1};
         COORD pos = {0, 0};
@@ -26,12 +26,12 @@ namespace Dirt
         rect.Right = screen.leftView.renderRect.Right;
         if(!WriteConsoleOutput(screen.backBuffer, leftClear, size, pos, &rect))
         {
-          printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
+          printf("%s%d WriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
           return;
         }
         if(!WriteConsoleOutput(screen.frontBuffer, leftClear, size, pos, &rect))
         {
-          printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
+          printf("%s%d WriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
           return;
         }
       }
@@ -40,7 +40,7 @@ namespace Dirt
       {
         rightClear[i] = {' ', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE};
       }
-      for(int i = 0; i < screen.rightView.nEntries; i++)
+      for(int i = 0; i < screen.rightView.height; i++)
       {
         COORD size {screen.rightView.width, 1};
         COORD pos = {0, 0};
@@ -51,12 +51,12 @@ namespace Dirt
         rect.Right = screen.rightView.renderRect.Right;
         if(!WriteConsoleOutput(screen.backBuffer, rightClear, size, pos, &rect))
         {
-          printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
+          printf("%s%d WriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
           return;
         }
         if(!WriteConsoleOutput(screen.frontBuffer, rightClear, size, pos, &rect))
         {
-          printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
+          printf("%s%d WriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
           return;
         }
       }
@@ -96,7 +96,8 @@ namespace Dirt
 
     void renderDirectoryView(ScreenData &screen, DirectoryView &view)
     {
-      for(int i = 0; i < view.nEntries; i++)
+      size_t minHeight = min(view.nEntries, view.height+view.cursorIndex.scroll);
+      for(size_t i = view.cursorIndex.scroll; i < minHeight; i++)
       {
         CHAR_INFO filename[MAX_PATH] = {0};
         bool isDirectory = (view.entries[i].dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
@@ -104,13 +105,13 @@ namespace Dirt
         COORD filenameSize {view.width, 1};
         COORD filenamePos = {0, 0};
         SMALL_RECT rect;
-        rect.Top = view.renderRect.Top+i;
+        rect.Top = view.renderRect.Top+(SHORT)i-(SHORT)view.cursorIndex.scroll;
         rect.Left = view.renderRect.Left;
         rect.Bottom = view.renderRect.Bottom;
         rect.Right = view.renderRect.Right;
         if(!WriteConsoleOutput(screen.backBuffer, filename, filenameSize, filenamePos, &rect))
         {
-          printf("WriteConsoleOutput failed (%lu)\n", GetLastError());
+          printf("%s%dWriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
           return;
         }
       }
@@ -118,7 +119,8 @@ namespace Dirt
 
     void styleView(Context *context, HANDLE screenBuffer, DirectoryView view)
     {
-      for(int i = 0; i < view.nEntries; i++)
+      size_t minHeight = min(view.nEntries, view.height+view.cursorIndex.scroll);
+      for(int i = view.cursorIndex.scroll; i < minHeight; i++)
       {
         WIN32_FIND_DATA entry = view.entries[i];
 
@@ -126,7 +128,7 @@ namespace Dirt
         
         COORD coords;
         coords.X = view.renderRect.Left;
-        coords.Y = i;
+        coords.Y = i-view.cursorIndex.scroll;
         size_t filenameLength = strlen(view.entries[i].cFileName);
         DWORD nSet = 0;
 
@@ -143,7 +145,6 @@ namespace Dirt
         char fullPath[MAX_PATH] = {0};
         Entry::getFullPath(fullPath, entry.cFileName, MAX_PATH);
 
-        size_t len = strlen(fullPath);
         if(hashmapContains(context->selection, fullPath, context->selection->dataSize, 0, 0))
         {
           FillConsoleOutputAttribute(
@@ -158,17 +159,21 @@ namespace Dirt
 
     void highlightLine(Context *context, ScreenData &screen)
     {
-      size_t cursorFilenameLength = strlen(screen.active->entries[screen.active->cursorIndex].cFileName);
+      size_t cursorFilenameLength = strlen(
+          screen.active->entries[screen.active->cursorIndex.actualIndex].cFileName);
       size_t emptySpace = 
         screen.active->width - cursorFilenameLength;
       COORD coords;
       DWORD nSet = 0;
       coords.X = screen.active->renderRect.Left;
-      coords.Y = screen.active->cursorIndex;
+      coords.Y = screen.active->cursorIndex.visualIndex;
       WORD attribs = BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
 
       char fullPath[MAX_PATH] = {0};
-      Entry::getFullPath(fullPath, screen.active->entries[screen.active->cursorIndex].cFileName, MAX_PATH);
+      Entry::getFullPath(
+          fullPath,
+          screen.active->entries[screen.active->cursorIndex.actualIndex].cFileName,
+          MAX_PATH);
 
       if(hashmapContains(context->selection, fullPath, MAX_PATH, 0, 0))
       {
@@ -236,7 +241,7 @@ namespace Dirt
       strcpy(screen.leftView.path, currentDir);
       screen.leftView.renderRect.Top = 0;
       screen.leftView.renderRect.Left = 0;
-      screen.leftView.renderRect.Bottom = 80;
+      screen.leftView.renderRect.Bottom = 30;
       screen.leftView.renderRect.Right = 40;
       screen.leftView.width = screen.leftView.renderRect.Right - screen.leftView.renderRect.Left;
       screen.leftView.height = screen.leftView.renderRect.Bottom - screen.leftView.renderRect.Top;
@@ -255,7 +260,7 @@ namespace Dirt
       strcpy(screen.rightView.path, "C:\\");
       screen.rightView.renderRect.Top = 0;
       screen.rightView.renderRect.Left = 42;
-      screen.rightView.renderRect.Bottom = 80;
+      screen.rightView.renderRect.Bottom = 30;
       screen.rightView.renderRect.Right = 82;
       screen.rightView.width = screen.rightView.renderRect.Right - screen.rightView.renderRect.Left;
       screen.rightView.height = screen.rightView.renderRect.Bottom - screen.rightView.renderRect.Top;
@@ -283,16 +288,22 @@ namespace Dirt
 
       if(view.path[0])
       {
-        size_t cursorIndex = view.cursorIndex;
+        DirectoryView::CursorIndex cursorIndex = view.cursorIndex;
         DirectoryView::CursorMapEntry cursorIndexEntry;
         size_t viewPathLen = strlen(view.path);
         cursorIndexEntry.cursorIndex = cursorIndex;
         memcpy(cursorIndexEntry.path, view.path, viewPathLen);
 
         size_t hashIndex, dupeIndex;
-        if(getViewCursorIndex(view, &hashIndex, &dupeIndex))
+        DirectoryView::CursorIndex testIndex = getViewCursorIndex(view, &hashIndex, &dupeIndex);
+        if(!(testIndex.actualIndex + testIndex.visualIndex))
         {
-          hashmapDirectWrite(view.cursorMap, &cursorIndexEntry, hashIndex, dupeIndex, sizeof(DirectoryView::CursorMapEntry));
+          hashmapDirectWrite(
+              view.cursorMap,
+              &cursorIndexEntry,
+              hashIndex,
+              dupeIndex,
+              sizeof(DirectoryView::CursorMapEntry));
         }
         else 
         {
@@ -331,7 +342,7 @@ namespace Dirt
       }
     }
 
-    size_t getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut)
+    DirectoryView::CursorIndex getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut)
     {
       size_t viewPathLen = strlen(view.path);
       size_t hashIndex = hashmapGetIndex(view.cursorMap, view.path, viewPathLen);
@@ -359,32 +370,44 @@ namespace Dirt
         }
       }
 
-      return 0;
+      DirectoryView::CursorIndex zeroIndex = {0, 0, 0};
+      return zeroIndex;
     }
 
     void incrementScreenCursorIndex(ScreenData &screen)
     {
-      uint32_t currentIndex = screen.active->cursorIndex;
-      if(currentIndex < (screen.active->nEntries-1))
+      DirectoryView::CursorIndex currentIndex = screen.active->cursorIndex;
+      if(currentIndex.actualIndex < (screen.active->nEntries-1))
       {
-        screen.active->cursorIndex++;
+        screen.active->cursorIndex.actualIndex++;
+        if(currentIndex.visualIndex == screen.active->height-1)
+        {
+          screen.active->cursorIndex.scroll++;
+          clearScreen(screen);
+        }
       }
-      else 
+      size_t minHeight = min(screen.active->height-1, screen.active->nEntries-1);
+      if(currentIndex.visualIndex < minHeight)
       {
-        screen.active->cursorIndex = 0;
+        screen.active->cursorIndex.visualIndex++;
       }
     }
 
     void decrementScreenCursorIndex(ScreenData &screen)
     {
-      uint32_t currentIndex = screen.active->cursorIndex;
-      if(currentIndex > 0)
+      DirectoryView::CursorIndex currentIndex = screen.active->cursorIndex;
+      if(currentIndex.actualIndex > 0)
       {
-        screen.active->cursorIndex--;
+        screen.active->cursorIndex.actualIndex--;
+        if(currentIndex.visualIndex == 0)
+        {
+          screen.active->cursorIndex.scroll--;
+          clearScreen(screen);
+        }
       }
-      else 
+      if(currentIndex.visualIndex > 0)
       {
-        screen.active->cursorIndex = screen.active->nEntries-1;
+        screen.active->cursorIndex.visualIndex--;
       }
     }
   } // namespace Screen

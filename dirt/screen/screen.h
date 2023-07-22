@@ -17,14 +17,20 @@ namespace Dirt
     struct DirectoryView
     {
       SMALL_RECT renderRect = {0};
-      SHORT width = 0, height = 0;
+      SHORT width = 0;
+      SHORT height = 0;
       size_t nEntries = 0;
-      size_t cursorIndex = 0;
       char path[MAX_PATH] = {0};
       WIN32_FIND_DATA *entries = 0;
+      struct CursorIndex
+      {
+        size_t visualIndex = 0;
+        size_t actualIndex = 0;
+        size_t scroll = 0;
+      } cursorIndex;
       struct CursorMapEntry
       {
-        size_t cursorIndex;
+        CursorIndex cursorIndex;
         char path[MAX_PATH] = {0};
       };
       Hashmap *cursorMap;
@@ -35,7 +41,6 @@ namespace Dirt
       HANDLE backBuffer, frontBuffer;
       DirectoryView leftView, rightView, *active;
     };
-
 
     bool allocScreen(ScreenData &screen);
     bool initScreenDirectoryViews(Context *context, ScreenData &screen);
@@ -48,7 +53,7 @@ namespace Dirt
     void swapScreenBuffers(ScreenData &screen);
     bool setActiveView(ScreenData &screen, DirectoryView &view);
     void clearScreen(ScreenData &screen);
-    size_t getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut);
+    DirectoryView::CursorIndex getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut);
     void styleScreenViews(Context *context, ScreenData &screen);
     void incrementScreenCursorIndex(ScreenData &screen);
     void decrementScreenCursorIndex(ScreenData &screen);
