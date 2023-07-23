@@ -28,7 +28,7 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  context->entryBufferNSlots = ENTRYBUFFER_SIZE;
+  context->entryBufferNSlots = DIRT_ENTRYBUFFER_SIZE;
 
   Screen::ScreenData firstScreen;
   if(!allocScreen(firstScreen))
@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  initScreenDirectoryViews(context, firstScreen);
+  initScreenViews(context, firstScreen);
 
   HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
   if(stdinHandle == INVALID_HANDLE_VALUE)
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
   SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
   while(!context->quit)
   {
-    renderScreenDirectoryViews(*context->currentScreen);
+    renderScreenViews(*context->currentScreen);
     styleScreenViews(context, *(context->currentScreen));
     swapScreenBuffers(*(context->currentScreen));
     Input::handleInput(context, *(context->currentScreen), stdinHandle);

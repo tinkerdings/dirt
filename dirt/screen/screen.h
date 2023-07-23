@@ -5,8 +5,6 @@
 #include <dirt/context/context.h>
 #include <dirt/structures/hashmap.h>
 
-#define DIRT_CURSORINDICES_MIN_DUPES 10
-#define DIRT_CURSORINDICES_MIN_SIZE 32
 
 using namespace Dirt::Structures;
 
@@ -14,7 +12,7 @@ namespace Dirt
 {
   namespace Screen
   {
-    struct DirectoryView
+    struct View
     {
       SMALL_RECT renderRect = {0};
       SHORT width = 0;
@@ -39,21 +37,21 @@ namespace Dirt
     struct ScreenData
     {
       HANDLE backBuffer, frontBuffer;
-      DirectoryView leftView, rightView, *active;
+      View leftView, rightView, *active;
     };
 
     bool allocScreen(ScreenData &screen);
-    bool initScreenDirectoryViews(Context *context, ScreenData &screen);
-    void setViewPath(Context *context, DirectoryView &view, char *relPath);
+    bool initScreenViews(Context *context, ScreenData &screen);
+    void setViewPath(Context *context, View &view, char *relPath);
     void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
-    void renderScreenDirectoryViews(ScreenData &screen);
-    void renderDirectoryView(ScreenData &screen, DirectoryView &view);
-    void styleView(Context *context, HANDLE screenBuffer, DirectoryView view);
+    void renderScreenViews(ScreenData &screen);
+    void renderView(ScreenData &screen, View &view);
+    void styleView(Context *context, HANDLE screenBuffer, View view);
     void highlightLine(Context *context, ScreenData &screen);
     void swapScreenBuffers(ScreenData &screen);
-    bool setActiveView(ScreenData &screen, DirectoryView &view);
+    bool setActiveView(ScreenData &screen, View &view);
     void clearScreen(ScreenData &screen);
-    DirectoryView::CursorIndex getStoredViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut);
+    View::CursorIndex getStoredViewCursorIndex(View &view, size_t *hashIndexOut, size_t *dupeIndexOut);
     void styleScreenViews(Context *context, ScreenData &screen);
     void incrementScreenCursorIndex(ScreenData &screen);
     void decrementScreenCursorIndex(ScreenData &screen);

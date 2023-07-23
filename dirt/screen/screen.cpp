@@ -88,14 +88,14 @@ namespace Dirt
     }
 
 
-    void renderScreenDirectoryViews(ScreenData &screen)
+    void renderScreenViews(ScreenData &screen)
     {
-      renderDirectoryView(screen, screen.leftView);
-      renderDirectoryView(screen, screen.rightView);
+      renderView(screen, screen.leftView);
+      renderView(screen, screen.rightView);
     }
 
 
-    void renderDirectoryView(ScreenData &screen, DirectoryView &view)
+    void renderView(ScreenData &screen, View &view)
     {
       size_t minHeight = min(view.nEntries, view.height+view.cursorIndex.scroll);
       for(size_t i = view.cursorIndex.scroll; i < minHeight; i++)
@@ -118,7 +118,7 @@ namespace Dirt
       }
     }
 
-    void styleView(Context *context, HANDLE screenBuffer, DirectoryView view)
+    void styleView(Context *context, HANDLE screenBuffer, View view)
     {
       size_t minHeight = min(view.nEntries, view.height+view.cursorIndex.scroll);
       for(int i = view.cursorIndex.scroll; i < minHeight; i++)
@@ -215,7 +215,7 @@ namespace Dirt
       }
     }
 
-    bool setActiveView(ScreenData &screen, DirectoryView &view)
+    bool setActiveView(ScreenData &screen, View &view)
     {
       screen.active = &view;
       if(!SetCurrentDirectory(screen.active->path))
@@ -226,19 +226,19 @@ namespace Dirt
       return true;
     }
 
-    bool initScreenDirectoryViews(Context *context, ScreenData &screen)
+    bool initScreenViews(Context *context, ScreenData &screen)
     {
       char currentDir[MAX_PATH] = {0};
       if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
       {
-        printf("initScreenDirectoryViews:GetCurrentDirectory failed (%lu)\n", GetLastError());
+        printf("initScreenViews:GetCurrentDirectory failed (%lu)\n", GetLastError());
         return false;
       }
       screen.leftView.cursorMap = 
         hashmapCreate(
           DIRT_CURSORINDICES_MIN_SIZE,
           DIRT_CURSORINDICES_MIN_DUPES,
-          sizeof(DirectoryView::CursorMapEntry));
+          sizeof(View::CursorMapEntry));
       strcpy(screen.leftView.path, currentDir);
       screen.leftView.renderRect.Top = 0;
       screen.leftView.renderRect.Left = 0;
@@ -257,7 +257,7 @@ namespace Dirt
         hashmapCreate(
             DIRT_CURSORINDICES_MIN_SIZE,
             DIRT_CURSORINDICES_MIN_DUPES,
-            sizeof(DirectoryView::CursorMapEntry));
+            sizeof(View::CursorMapEntry));
       strcpy(screen.rightView.path, "C:\\");
       screen.rightView.renderRect.Top = 0;
       screen.rightView.renderRect.Left = 42;
@@ -277,7 +277,7 @@ namespace Dirt
       return true;
     }
 
-    void setViewPath(Context *context, DirectoryView &view, char *relPath)
+    void setViewPath(Context *context, View &view, char *relPath)
     {
       char fullPath[MAX_PATH] = {0};
       Entry::getFullPath(fullPath, relPath, MAX_PATH);
@@ -289,14 +289,14 @@ namespace Dirt
 
       if(view.path[0])
       {
-        DirectoryView::CursorIndex cursorIndex = view.cursorIndex;
-        DirectoryView::CursorMapEntry cursorIndexEntry;
+        View::CursorIndex cursorIndex = view.cursorIndex;
+        View::CursorMapEntry cursorIndexEntry;
         size_t viewPathLen = strlen(view.path);
         cursorIndexEntry.cursorIndex = cursorIndex;
         memcpy(cursorIndexEntry.path, view.path, viewPathLen);
 
         size_t hashIndex, dupeIndex;
-        DirectoryView::CursorIndex testIndex = getStoredViewCursorIndex(view, &hashIndex, &dupeIndex);
+        View::CursorIndex testIndex = getStoredViewCursorIndex(view, &hashIndex, &dupeIndex);
         if(testIndex.actualIndex + testIndex.visualIndex)
         {
           hashmapDirectWrite(
@@ -304,7 +304,7 @@ namespace Dirt
               &cursorIndexEntry,
               hashIndex,
               dupeIndex,
-              sizeof(DirectoryView::CursorMapEntry));
+              sizeof(View::CursorMapEntry));
         }
         else 
         {
@@ -313,7 +313,7 @@ namespace Dirt
             view.path,
             &cursorIndexEntry,
             viewPathLen,
-            sizeof(DirectoryView::CursorMapEntry));
+            sizeof(View::CursorMapEntry));
         }
       }
 
@@ -321,7 +321,7 @@ namespace Dirt
 
       free(view.entries);
       view.entries = 0;
-      context->entryBufferNSlots = ENTRYBUFFER_SIZE;
+      context->entryBufferNSlots = DIRT_ENTRYBUFFER_SIZE;
       view.entries = Entry::findDirectoryEntries(context, view.path, view.nEntries);
 
       view.cursorIndex = getStoredViewCursorIndex(view, 0, 0);
@@ -343,7 +343,7 @@ namespace Dirt
       }
     }
 
-    DirectoryView::CursorIndex getStoredViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut)
+    View::CursorIndex getStoredViewCursorIndex(View &view, size_t *hashIndexOut, size_t *dupeIndexOut)
     {
       size_t viewPathLen = strlen(view.path);
       size_t hashIndex = hashmapGetIndex(view.cursorMap, view.path, viewPathLen);
@@ -352,7 +352,7 @@ namespace Dirt
       {
         for(size_t i = 0; i < view.cursorMap->nDupes; i++)
         {
-          DirectoryView::CursorMapEntry *entry = (DirectoryView::CursorMapEntry *)view.cursorMap->map[hashIndex][i].data;
+          View::CursorMapEntry *entry = (View::CursorMapEntry *)view.cursorMap->map[hashIndex][i].data;
           bool ret;
           size_t entryPathLen = strlen(entry->path);
           size_t viewPathLen = strlen(view.path);
@@ -371,13 +371,13 @@ namespace Dirt
         }
       }
 
-      DirectoryView::CursorIndex zeroIndex = {0, 0, 0};
+      View::CursorIndex zeroIndex = {0, 0, 0};
       return zeroIndex;
     }
 
     void incrementScreenCursorIndex(ScreenData &screen)
     {
-      DirectoryView::CursorIndex currentIndex = screen.active->cursorIndex;
+      View::CursorIndex currentIndex = screen.active->cursorIndex;
       if(currentIndex.actualIndex < (screen.active->nEntries-1))
       {
         screen.active->cursorIndex.actualIndex++;
@@ -396,7 +396,7 @@ namespace Dirt
 
     void decrementScreenCursorIndex(ScreenData &screen)
     {
-      DirectoryView::CursorIndex currentIndex = screen.active->cursorIndex;
+      View::CursorIndex currentIndex = screen.active->cursorIndex;
       if(currentIndex.actualIndex > 0)
       {
         screen.active->cursorIndex.actualIndex--;
