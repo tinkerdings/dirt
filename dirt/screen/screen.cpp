@@ -297,7 +297,7 @@ namespace Dirt
 
         size_t hashIndex, dupeIndex;
         DirectoryView::CursorIndex testIndex = getStoredViewCursorIndex(view, &hashIndex, &dupeIndex);
-        if(!(testIndex.actualIndex + testIndex.visualIndex))
+        if(testIndex.actualIndex + testIndex.visualIndex)
         {
           hashmapDirectWrite(
               view.cursorMap,
