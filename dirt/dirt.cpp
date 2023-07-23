@@ -1,5 +1,5 @@
 #include <windows.h>
-#include <Shlwapi.h>
+#include <shlwapi.h>
 #include <DbgHelp.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -13,6 +13,7 @@
 #include <dirt/memory/memory.h>
 #include <dirt/input/input.h>
 #include <dirt/screen/screen.h>
+#include <dirt/predefinedValues.h>
 
 using namespace Dirt;
 
@@ -27,7 +28,7 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  context->maxEntriesInView = 128;
+  context->entryBufferNSlots = ENTRYBUFFER_SIZE;
 
   Screen::ScreenData firstScreen;
   if(!allocScreen(firstScreen))

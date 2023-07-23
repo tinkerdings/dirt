@@ -2,6 +2,7 @@
 #include <dirt/context/context.h>
 #include <dirt/entry/entry.h>
 #include <dirt/screen/screen.h>
+#include <dirt/predefinedValues.h>
 #include <stdio.h>
 
 namespace Dirt
@@ -320,7 +321,7 @@ namespace Dirt
 
       free(view.entries);
       view.entries = 0;
-      context->maxEntriesInView = 128;
+      context->entryBufferNSlots = ENTRYBUFFER_SIZE;
       view.entries = Entry::findDirectoryEntries(context, view.path, view.nEntries);
 
       view.cursorIndex = getViewCursorIndex(view, 0, 0);

@@ -39,7 +39,7 @@ namespace Dirt
         return 0;
       }
       HANDLE entry = INVALID_HANDLE_VALUE;
-      WIN32_FIND_DATA *entries = (WIN32_FIND_DATA *)malloc(context->maxEntriesInView * sizeof(WIN32_FIND_DATA));
+      WIN32_FIND_DATA *entries = (WIN32_FIND_DATA *)malloc(context->entryBufferNSlots * sizeof(WIN32_FIND_DATA));
       char fullPath[MAX_PATH] = {0};
       GetFullPathName(dirPath, MAX_PATH, fullPath, 0);
       strcat(fullPath, "\\*");
@@ -67,9 +67,11 @@ namespace Dirt
 
       size_t i = 1;
       BOOL findSuccess = 1;
+
       while(1)
       {
-        while((i < context->maxEntriesInView) && (findSuccess = FindNextFile(entry, &entries[i++]))){}
+        while((i < context->entryBufferNSlots) &&
+            (findSuccess = FindNextFile(entry, &entries[i++]))){}
         DWORD error;
 
         if(!findSuccess && ((error = GetLastError()) != ERROR_NO_MORE_FILES))
@@ -84,8 +86,8 @@ namespace Dirt
           {
             break;
           }
-          context->maxEntriesInView *= 2;
-          WIN32_FIND_DATA *tmpPtr = (WIN32_FIND_DATA *)realloc(entries, context->maxEntriesInView);
+          context->entryBufferNSlots *= 2;
+          WIN32_FIND_DATA *tmpPtr = (WIN32_FIND_DATA *)realloc(entries, context->entryBufferNSlots * sizeof(WIN32_FIND_DATA));
           if(!tmpPtr)
           {
             printf("Failed to realloc entries in findDirectoryEntries\n");

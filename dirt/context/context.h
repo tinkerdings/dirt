@@ -3,9 +3,6 @@
 
 #include <windows.h>
 
-#define DIRT_SELECTIONBUF_MIN_DUPES 10
-#define DIRT_SELECTIONBUF_MIN_SIZE 512
-
 namespace Dirt
 {
   // Forward declarations
@@ -22,7 +19,7 @@ namespace Dirt
   {
     Screen::ScreenData *currentScreen = 0;
     bool quit;
-    size_t maxEntriesInView;
+    size_t entryBufferNSlots;
     Structures::Hashmap *selection;
     struct InputData
     {
