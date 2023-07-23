@@ -296,7 +296,7 @@ namespace Dirt
         memcpy(cursorIndexEntry.path, view.path, viewPathLen);
 
         size_t hashIndex, dupeIndex;
-        DirectoryView::CursorIndex testIndex = getViewCursorIndex(view, &hashIndex, &dupeIndex);
+        DirectoryView::CursorIndex testIndex = getStoredViewCursorIndex(view, &hashIndex, &dupeIndex);
         if(!(testIndex.actualIndex + testIndex.visualIndex))
         {
           hashmapDirectWrite(
@@ -324,7 +324,7 @@ namespace Dirt
       context->entryBufferNSlots = ENTRYBUFFER_SIZE;
       view.entries = Entry::findDirectoryEntries(context, view.path, view.nEntries);
 
-      view.cursorIndex = getViewCursorIndex(view, 0, 0);
+      view.cursorIndex = getStoredViewCursorIndex(view, 0, 0);
     }
 
     void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory)
@@ -343,7 +343,7 @@ namespace Dirt
       }
     }
 
-    DirectoryView::CursorIndex getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut)
+    DirectoryView::CursorIndex getStoredViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut)
     {
       size_t viewPathLen = strlen(view.path);
       size_t hashIndex = hashmapGetIndex(view.cursorMap, view.path, viewPathLen);

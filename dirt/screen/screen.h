@@ -53,7 +53,7 @@ namespace Dirt
     void swapScreenBuffers(ScreenData &screen);
     bool setActiveView(ScreenData &screen, DirectoryView &view);
     void clearScreen(ScreenData &screen);
-    DirectoryView::CursorIndex getViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut);
+    DirectoryView::CursorIndex getStoredViewCursorIndex(DirectoryView &view, size_t *hashIndexOut, size_t *dupeIndexOut);
     void styleScreenViews(Context *context, ScreenData &screen);
     void incrementScreenCursorIndex(ScreenData &screen);
     void decrementScreenCursorIndex(ScreenData &screen);
