@@ -62,6 +62,7 @@ int main(int argc, char **argv)
   {
     renderScreenViews(*context->currentScreen);
     styleScreenViews(context, *(context->currentScreen));
+    highlightLine(context, *(context->currentScreen));
     swapScreenBuffers(*(context->currentScreen));
     Input::handleInput(context, *(context->currentScreen), stdinHandle);
   }

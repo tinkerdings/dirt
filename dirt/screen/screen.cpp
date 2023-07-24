@@ -30,11 +30,6 @@ namespace Dirt
           printf("%s%d WriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
           return;
         }
-        if(!WriteConsoleOutput(screen.frontBuffer, leftClear, size, pos, &rect))
-        {
-          printf("%s%d WriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
-          return;
-        }
       }
       CHAR_INFO rightClear[MAX_PATH] = {0};
       for(int i = 0; i < screen.rightView.width; i++)
@@ -51,11 +46,6 @@ namespace Dirt
         rect.Bottom = screen.rightView.renderRect.Bottom;
         rect.Right = screen.rightView.renderRect.Right;
         if(!WriteConsoleOutput(screen.backBuffer, rightClear, size, pos, &rect))
-        {
-          printf("%s%d WriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
-          return;
-        }
-        if(!WriteConsoleOutput(screen.frontBuffer, rightClear, size, pos, &rect))
         {
           printf("%s%d WriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
           return;
@@ -90,6 +80,7 @@ namespace Dirt
 
     void renderScreenViews(ScreenData &screen)
     {
+      clearScreen(screen);
       renderView(screen, screen.leftView);
       renderView(screen, screen.rightView);
     }
@@ -160,8 +151,9 @@ namespace Dirt
 
     void highlightLine(Context *context, ScreenData &screen)
     {
-      size_t cursorFilenameLength = strlen(
-          screen.active->entries[screen.active->cursorIndex.actualIndex].cFileName);
+      size_t cursorFilenameLength = min(
+          strlen(screen.active->entries[screen.active->cursorIndex.actualIndex].cFileName),
+          screen.active->width);
       size_t emptySpace = 
         screen.active->width - cursorFilenameLength;
       COORD coords;
@@ -188,19 +180,21 @@ namespace Dirt
         coords,
         &nSet);
 
-      coords.X += cursorFilenameLength;
-      FillConsoleOutputCharacter(screen.backBuffer,
-        ' ',
-        emptySpace,
-        coords,
-        &nSet);
+      if(emptySpace > 0)
+      {
+        coords.X += cursorFilenameLength;
+        FillConsoleOutputCharacter(screen.backBuffer,
+          ' ',
+          emptySpace,
+          coords,
+          &nSet);
+      }
     }
 
     void styleScreenViews(Context *context, ScreenData &screen)
     {
       styleView(context, screen.backBuffer, screen.leftView);
       styleView(context, screen.backBuffer, screen.rightView);
-      highlightLine(context, screen);
     }
 
     void swapScreenBuffers(ScreenData &screen)
@@ -384,7 +378,7 @@ namespace Dirt
         if(currentIndex.visualIndex == screen.active->height-1)
         {
           screen.active->cursorIndex.scroll++;
-          clearScreen(screen);
+          renderScreenViews(screen);
         }
       }
       size_t minHeight = min(screen.active->height-1, screen.active->nEntries-1);
@@ -403,7 +397,7 @@ namespace Dirt
         if(currentIndex.visualIndex == 0)
         {
           screen.active->cursorIndex.scroll--;
-          clearScreen(screen);
+          renderScreenViews(screen);
         }
       }
       if(currentIndex.visualIndex > 0)

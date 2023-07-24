@@ -68,79 +68,77 @@ namespace Dirt
                   printf("Failed to set current directory (%lu)\n", GetLastError());
                 }
               } break;
-              case(VK_RETURN):
               case(VK_RIGHT):
               case(VK_L):
               {
                 if(activeEntry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
                 {
-                  clearScreen(*context->currentScreen);
                   setViewPath(context, *screen.active, activeEntry.cFileName);
                 }
-                else
+              } break;
+              case(VK_RETURN):
+              {
+                char fullPath[MAX_PATH] = {0};
+                if(!Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
                 {
-                  char fullPath[MAX_PATH] = {0};
-                  if(!Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
+                  printf("fullPath failed (%lu)\n", GetLastError());
+                  break;
+                }
+                DWORD binaryType = -1;
+                // TODO: Error handling for file opening
+                if(GetBinaryTypeA(fullPath, &binaryType))
+                {
+                  if(binaryType == SCS_32BIT_BINARY || binaryType == SCS_64BIT_BINARY)
                   {
-                    printf("fullPath failed (%lu)\n", GetLastError());
-                    break;
-                  }
-                  DWORD binaryType = -1;
-                  // TODO: Error handling for file opening
-                  if(GetBinaryTypeA(fullPath, &binaryType))
-                  {
-                    if(binaryType == SCS_32BIT_BINARY || binaryType == SCS_64BIT_BINARY)
+                    HANDLE exeHandle = CreateFileA(
+                      fullPath, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+                    if(exeHandle == INVALID_HANDLE_VALUE)
                     {
-                      HANDLE exeHandle = CreateFileA(
-                        fullPath, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-                      if(exeHandle == INVALID_HANDLE_VALUE)
-                      {
-                        printf("CreateFileA failed (%lu)\n", GetLastError());
-                        break;
-                      }
-                      HANDLE exeMapping = CreateFileMappingA(
-                        exeHandle,
-                        0,
-                        PAGE_READONLY, 0, 0, 0);
-                      if(!exeMapping || exeMapping == INVALID_HANDLE_VALUE)
-                      {
-                        printf("CreateFileMappingA failed (%lu)\n", GetLastError());
-                        break;
-                      }
-                      void* exe = MapViewOfFile(
-                        exeMapping, FILE_MAP_READ, 0, 0, 0);
-                      PIMAGE_NT_HEADERS ntHeaders = ImageNtHeader(exe);
-                      switch(ntHeaders->OptionalHeader.Subsystem)
-                      {
-                        case(IMAGE_SUBSYSTEM_WINDOWS_CUI):
-                        {
-                          ShellExecuteA(0, 0, fullPath, 0, 0, SW_SHOW);
-                        } break;
-                        case(IMAGE_SUBSYSTEM_WINDOWS_GUI):
-                        {
-                          PROCESS_INFORMATION exeInfo;
-                          STARTUPINFOA startupInfo = {
-                            sizeof(STARTUPINFOA),
-                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                            STARTF_USESHOWWINDOW, SW_SHOW,
-                            0, 0, 0, 0, 0
-                          };
-                          CreateProcessA(fullPath, 
-                            0, 0, 0, false,
-                            NORMAL_PRIORITY_CLASS,
-                            0, 0,
-                            &startupInfo, &exeInfo);
-                        } break;
-                      }
-                    }
-                  }
-                  else 
-                  {
-                    if(ShellExecuteA(0, 0, fullPath, 0, 0, SW_SHOW) <= (HINSTANCE)32)
-                    {
-                      printf("ShellExecuteA failed (%lu)\n", GetLastError());
+                      printf("CreateFileA failed (%lu)\n", GetLastError());
                       break;
                     }
+                    HANDLE exeMapping = CreateFileMappingA(
+                      exeHandle,
+                      0,
+                      PAGE_READONLY, 0, 0, 0);
+                    if(!exeMapping || exeMapping == INVALID_HANDLE_VALUE)
+                    {
+                      printf("CreateFileMappingA failed (%lu)\n", GetLastError());
+                      break;
+                    }
+                    void* exe = MapViewOfFile(
+                      exeMapping, FILE_MAP_READ, 0, 0, 0);
+                    PIMAGE_NT_HEADERS ntHeaders = ImageNtHeader(exe);
+                    switch(ntHeaders->OptionalHeader.Subsystem)
+                    {
+                      case(IMAGE_SUBSYSTEM_WINDOWS_CUI):
+                      {
+                        ShellExecuteA(0, 0, fullPath, 0, 0, SW_SHOW);
+                      } break;
+                      case(IMAGE_SUBSYSTEM_WINDOWS_GUI):
+                      {
+                        PROCESS_INFORMATION exeInfo;
+                        STARTUPINFOA startupInfo = {
+                          sizeof(STARTUPINFOA),
+                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                          STARTF_USESHOWWINDOW, SW_SHOW,
+                          0, 0, 0, 0, 0
+                        };
+                        CreateProcessA(fullPath, 
+                          0, 0, 0, false,
+                          NORMAL_PRIORITY_CLASS,
+                          0, 0,
+                          &startupInfo, &exeInfo);
+                      } break;
+                    }
+                  }
+                }
+                else 
+                {
+                  if(ShellExecuteA(0, 0, fullPath, 0, 0, SW_SHOW) <= (HINSTANCE)32)
+                  {
+                    printf("ShellExecuteA failed (%lu)\n", GetLastError());
+                    break;
                   }
                 }
               } break;
@@ -148,7 +146,6 @@ namespace Dirt
               case(VK_LEFT):
               case(VK_H):
               {
-                clearScreen(*context->currentScreen);
                 setViewPath(context, *screen.active, "..");
               } break;
               case(VK_SPACE):
