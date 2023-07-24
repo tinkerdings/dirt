@@ -142,6 +142,20 @@ namespace Dirt
                   }
                 }
               } break;
+              case(VK_X):
+              {
+                char fullPath[MAX_PATH] = {0};
+                if(!Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
+                {
+                  printf("fullPath failed (%lu)\n", GetLastError());
+                  break;
+                }
+                if(ShellExecuteA(0, 0, "C:\\Windows\\system32\\cmd.exe", 0, 0, SW_SHOW) <= (HINSTANCE)32)
+                {
+                  printf("ShellExecuteA failed (%lu)\n", GetLastError());
+                  break;
+                }
+              } break;
               case(VK_BACK):
               case(VK_LEFT):
               case(VK_H):
