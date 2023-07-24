@@ -156,6 +156,33 @@ namespace Dirt
                   break;
                 }
               } break;
+              case(VK_E):
+              {
+                char fullPath[MAX_PATH] = {0};
+                if(!Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
+                {
+                  printf("fullPath failed (%lu)\n", GetLastError());
+                  break;
+                }
+                PROCESS_INFORMATION exeInfo;
+                STARTUPINFOA startupInfo = {
+                  sizeof(STARTUPINFOA),
+                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                  STARTF_USESHOWWINDOW, SW_SHOW,
+                  0, 0, 0, 0, 0
+                };
+                char explorerPath[MAX_PATH] = {0};
+                FindExecutableA("explorer.exe", 0, explorerPath);
+                char arg[MAX_PATH] = {0};
+                strcat(arg, " /e,/root,");
+                strcat(arg, fullPath);
+                CreateProcessA(explorerPath,
+                  arg,
+                  0, 0, false,
+                  NORMAL_PRIORITY_CLASS,
+                  0, 0,
+                  &startupInfo, &exeInfo);
+              } break;
               case(VK_BACK):
               case(VK_LEFT):
               case(VK_H):
