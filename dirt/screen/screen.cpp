@@ -195,6 +195,7 @@ namespace Dirt
     {
       styleView(context, screen.backBuffer, screen.leftView);
       styleView(context, screen.backBuffer, screen.rightView);
+      highlightLine(context, *(context->currentScreen));
     }
 
     void swapScreenBuffers(ScreenData &screen)
