@@ -55,7 +55,7 @@ variables so you can run dirt from anywhere using the command prompt.
 |**H** or **Left-Arrow** or **Backspace**|jump out to parent directory|
 |**J** or **Down-Arrow**|navigate down one entry|
 |**K** or **Up-Arrow**|navigate up one entry|
-|**L** or **Right-Arrow**|jump into highlighted directory, or open highlighted file|
+|**L** or **Right-Arrow**|jump into highlighted directory|
 |**Return**|open highlighted file|
 |**TAB**|switch to other pane|
 |**Space**|select/deselect highlighted entry|
