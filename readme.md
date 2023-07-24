@@ -55,12 +55,15 @@ variables so you can run dirt from anywhere using the command prompt.
 |**H** or **Left-Arrow** or **Backspace**|jump out to parent directory|
 |**J** or **Down-Arrow**|navigate down one entry|
 |**K** or **Up-Arrow**|navigate up one entry|
-|**L** or **Right-Arrow** or **Return**|jump into highlighted directory, or open highlighted file|
+|**L** or **Right-Arrow**|jump into highlighted directory, or open highlighted file|
+|**Return**|open highlighted file|
 |**TAB**|switch to other pane|
 |**Space**|select/deselect highlighted entry|
 |**Shift+Space**|deselect all selected entries|
 |**D**|delete selected entries|
 |**M**|move selected entries to currently viewed directory|
+|**X**|Open command prompt in current directory|
+|**E**|Open windows explorer in current directory|
 
 ## Planned features
 _coming soon_
