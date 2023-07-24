@@ -150,7 +150,7 @@ namespace Dirt
                   printf("fullPath failed (%lu)\n", GetLastError());
                   break;
                 }
-                if(ShellExecuteA(0, 0, "C:\\Windows\\system32\\cmd.exe", 0, 0, SW_SHOW) <= (HINSTANCE)32)
+                if(ShellExecuteA(0, 0, "cmd.exe", 0, 0, SW_SHOW) <= (HINSTANCE)32)
                 {
                   printf("ShellExecuteA failed (%lu)\n", GetLastError());
                   break;
