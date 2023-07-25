@@ -88,3 +88,4 @@ _More to come_
 - [ ] Ability to create files
 - [ ] Presentation of file/directory details, filetype, size, creation date etc.
 - [ ] Selection marks, to select muliple files with less keypresses
+- [ ] Removal of C runtime lib for smaller executable size
