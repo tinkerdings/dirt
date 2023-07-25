@@ -1,3 +1,4 @@
+#include "dirt/error/errorCode.h"
 #include <dirt/memory/memory.h>
 #include <dirt/context/context.h>
 #include <dirt/entry/entry.h>
@@ -71,29 +72,78 @@ namespace Dirt
       view.entries = Entry::findDirectoryEntries(context, view.path, view.nEntries);
     }
 
-    bool allocScreen(ScreenData &screen)
+    bool initScreens(Context *context, int nScreens)
     {
-      screen.backBuffer = CreateConsoleScreenBuffer(
-        GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        NULL,
-        CONSOLE_TEXTMODE_BUFFER,
-        NULL);
-      screen.frontBuffer = CreateConsoleScreenBuffer(
-        GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        NULL,
-        CONSOLE_TEXTMODE_BUFFER,
-        NULL);
-
-      if((screen.backBuffer == INVALID_HANDLE_VALUE) || (screen.frontBuffer == INVALID_HANDLE_VALUE))
+      if(!(context->screens = (ScreenData **)calloc(nScreens, sizeof(ScreenData*))))
       {
+        Error::errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
         return false;
+      }
+      for(int i = 0; i < nScreens; i++)
+      {
+        if(!(context->screens[i] = (ScreenData *)calloc(1, sizeof(ScreenData))))
+        {
+          for(int j = i-1; j >= 0; j--)
+          {
+            free(context->screens[j]);
+            context->screens[j] = 0;
+          }
+          free(context->screens);
+          context->screens = 0;
+          Error::errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+          return false;
+        }
+
+        if(!initScreenViews(context, *context->screens[i]))
+        {
+          for(int j = i; j >= 0; j--)
+          {
+            free(context->screens[j]);
+            context->screens[j] = 0;
+          }
+          free(context->screens);
+          context->screens = 0;
+          Error::errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+          return false;
+        }
+      }
+
+      context->backBuffer = CreateConsoleScreenBuffer(
+          GENERIC_READ | GENERIC_WRITE,
+          FILE_SHARE_READ | FILE_SHARE_WRITE,
+          NULL,
+          CONSOLE_TEXTMODE_BUFFER,
+          NULL);
+      context->frontBuffer = CreateConsoleScreenBuffer(
+          GENERIC_READ | GENERIC_WRITE,
+          FILE_SHARE_READ | FILE_SHARE_WRITE,
+          NULL,
+          CONSOLE_TEXTMODE_BUFFER,
+          NULL);
+
+      if((context->backBuffer == INVALID_HANDLE_VALUE) ||
+          (context->frontBuffer == INVALID_HANDLE_VALUE))
+      {
+        free(context->backBuffer);
+        free(context->frontBuffer);
+        free(context->screens);
+        context->backBuffer = 0;
+        context->frontBuffer = 0;
+        context->screens = 0;
+
+        Error::errorCode = DIRT_ERROR_ALLOCATION_FAILURE;
+
+        return false;
+      }
+
+      for(int i = 0; i < nScreens; i++)
+      {
+        context->screens[i]->backBuffer = context->backBuffer;
+        context->screens[i]->frontBuffer = context->frontBuffer;
       }
 
       return true;
     }
-
 
     void renderScreenViews(ScreenData &screen)
     {
@@ -101,7 +151,6 @@ namespace Dirt
       renderView(screen, screen.leftView);
       renderView(screen, screen.rightView);
     }
-
 
     void renderView(ScreenData &screen, View &view)
     {
@@ -238,6 +287,13 @@ namespace Dirt
       return true;
     }
 
+    void setCurrentScreen(Context *context, int unsigned number)
+    {
+      context->currentScreen = context->screens[min(number, DIRT_N_SCREENS-1)];
+      setViewPath(context, context->currentScreen->leftView, context->currentScreen->leftView.path);
+      setViewPath(context, context->currentScreen->rightView, context->currentScreen->rightView.path);
+    }
+
     bool initScreenViews(Context *context, ScreenData &screen)
     {
       char currentDir[MAX_PATH] = {0};
@@ -291,6 +347,11 @@ namespace Dirt
 
     void setViewPath(Context *context, View &view, char *relPath)
     {
+      if(!SetCurrentDirectory(view.path))
+      {
+        printf("Failed to set current directory (%lu)\n", GetLastError());
+      }
+
       char fullPath[MAX_PATH] = {0};
       Entry::getFullPath(fullPath, relPath, MAX_PATH);
 

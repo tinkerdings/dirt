@@ -35,7 +35,8 @@ namespace Dirt
               context->input.prevKeyCode = -1;
               break;
             }
-            switch(inputBuffer[inputRecIndex].Event.KeyEvent.wVirtualKeyCode)
+            WORD vKeyCode = inputBuffer[inputRecIndex].Event.KeyEvent.wVirtualKeyCode;
+            switch(vKeyCode)
             {
               case(VK_Q):
               {
@@ -235,6 +236,18 @@ namespace Dirt
               case(VK_R):
               {
                 Screen::refresh(context, screen);
+              } break;
+              case(VK_1):
+              case(VK_2):
+              case(VK_3):
+              case(VK_4):
+              case(VK_5):
+              case(VK_6):
+              case(VK_7):
+              case(VK_8):
+              case(VK_9):
+              {
+                Screen::setCurrentScreen(context, vKeyCode-VK_1);
               } break;
             }
 

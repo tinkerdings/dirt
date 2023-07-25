@@ -1,6 +1,7 @@
 #ifndef CONTEXT_H
 #define CONTEXT_H
 
+#include "dirt/predefinedValues.h"
 #include <windows.h>
 
 namespace Dirt
@@ -17,7 +18,10 @@ namespace Dirt
 
   struct Context
   {
+    Screen::ScreenData **screens;
     Screen::ScreenData *currentScreen = 0;
+    HANDLE backBuffer = 0;
+    HANDLE frontBuffer = 0;
     bool quit;
     size_t entryBufferNSlots;
     Structures::Hashmap *selection;

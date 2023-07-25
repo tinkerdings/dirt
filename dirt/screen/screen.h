@@ -40,8 +40,9 @@ namespace Dirt
       View leftView, rightView, *active;
     };
 
-    bool allocScreen(ScreenData &screen);
+    bool initScreens(Context *context, int nScreens);
     bool initScreenViews(Context *context, ScreenData &screen);
+    void setCurrentScreen(Context *context, int unsigned number);
     void setViewPath(Context *context, View &view, char *relPath);
     void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
     void renderScreenViews(ScreenData &screen);

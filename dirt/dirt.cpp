@@ -30,13 +30,12 @@ int main(int argc, char **argv)
 
   context->entryBufferNSlots = DIRT_ENTRYBUFFER_SIZE;
 
-  Screen::ScreenData firstScreen;
-  if(!allocScreen(firstScreen))
+  if(!initScreens(context, DIRT_N_SCREENS))
   {
-    printf("Failed to allocate console screen buffer (%lu)\n", GetLastError());
+    printf("Failed to initialize screens\n");
     return 1;
   }
-  context->currentScreen = &firstScreen;
+  Screen::setCurrentScreen(context, 0);
 
   if(!(context->selection = 
     hashmapCreate(
@@ -47,8 +46,6 @@ int main(int argc, char **argv)
     printf("Failed to init hashmap for entry selection\n");
     return 1;
   }
-
-  initScreenViews(context, firstScreen);
 
   HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
   if(stdinHandle == INVALID_HANDLE_VALUE)
@@ -70,8 +67,12 @@ int main(int argc, char **argv)
   // This is super slow, maybe not a point to do this, since exit.
   /* hashmapDestroy(context->selection); */
   /* hashmapDestroy(context->dirCursorIndices); */
-  free(firstScreen.leftView.entries);
-  free(firstScreen.rightView.entries);
+  for(int i = 0; i < DIRT_N_SCREENS; i++)
+  {
+    free(context->screens[i]->leftView.entries);
+    free(context->screens[i]->rightView.entries);
+  }
+  free(context->screens);
   free(context);
 
   return 0;
