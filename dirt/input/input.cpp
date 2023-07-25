@@ -37,7 +37,6 @@ namespace Dirt
             }
             switch(inputBuffer[i].Event.KeyEvent.wVirtualKeyCode)
             {
-              case(VK_ESCAPE):
               case(VK_Q):
               {
                 context->quit = true;
@@ -192,13 +191,12 @@ namespace Dirt
                 setViewPath(context, *screen.active, "..");
                 /* } */
               } break;
+              case(VK_ESCAPE):
+              {
+                Dirt::Entry::clearAllSelection(context);
+              } break;
               case(VK_SPACE):
               {
-                if(inputBuffer[i].Event.KeyEvent.dwControlKeyState == SHIFT_PRESSED)
-                {
-                  Dirt::Entry::clearAllSelection(context);
-                  break;
-                }
                 if(inputNoKeyRepeat(context, inputBuffer, i, INPUTBUF_SIZE))
                 {
                   char fullPath[MAX_PATH] = {0};
