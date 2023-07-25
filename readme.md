@@ -67,7 +67,6 @@ variables so you can run dirt from anywhere using the command prompt.
 |**R**|Refresh both views|
 
 ## Features
-_More to come_
 
 **Already Implemented:**
 - [X] Navigation in directories
@@ -81,7 +80,7 @@ _More to come_
 - [X] Manual refreshing of views
 - [X] Keyboard only based controls, for keeping your hands where they are comfortable ;)
 
-**Planned for future:**
+**Planned for future (_More to come_):**
 - [ ] Handling navigation correctly for reparse points
 - [ ] Automatic refreshing of views
 - [ ] Ability to create directories
