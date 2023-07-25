@@ -34,10 +34,18 @@ namespace Dirt
       Hashmap *cursorMap;
     };
 
+    struct Container
+    {
+      uint16_t pos[2] = {0};
+      uint16_t width = 0;
+      uint16_t height = 0;
+    };
+
     struct ScreenData
     {
       HANDLE backBuffer, frontBuffer;
       View leftView, rightView, *active;
+      Container viewContainer;
     };
 
     bool initScreens(Context *context, int nScreens);
