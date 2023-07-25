@@ -23,19 +23,19 @@ namespace Dirt
         return;
       }
 
-      for(int i = 0; i < nRecordsRead; i++)
+      for(int inputRecIndex = 0; inputRecIndex < nRecordsRead; inputRecIndex++)
       {
         WIN32_FIND_DATA &activeEntry = screen.active->entries[screen.active->cursorIndex.actualIndex];
-        switch(inputBuffer[i].EventType)
+        switch(inputBuffer[inputRecIndex].EventType)
         {
           case(KEY_EVENT):
           {
-            if(!inputBuffer[i].Event.KeyEvent.bKeyDown)
+            if(!inputBuffer[inputRecIndex].Event.KeyEvent.bKeyDown)
             {
               context->input.prevKeyCode = -1;
               break;
             }
-            switch(inputBuffer[i].Event.KeyEvent.wVirtualKeyCode)
+            switch(inputBuffer[inputRecIndex].Event.KeyEvent.wVirtualKeyCode)
             {
               case(VK_Q):
               {
@@ -197,7 +197,10 @@ namespace Dirt
               } break;
               case(VK_SPACE):
               {
-                if(inputNoKeyRepeat(context, inputBuffer, i, INPUTBUF_SIZE))
+                /* if(inputBuffer[i].Event.KeyEvent.dwControlKeyState == SHIFT_PRESSED) */
+                /* { */
+                /* } */
+                if(inputNoKeyRepeat(context, inputBuffer, inputRecIndex, INPUTBUF_SIZE))
                 {
                   char fullPath[MAX_PATH] = {0};
                   if(!Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
@@ -236,7 +239,7 @@ namespace Dirt
             }
 
             context->input.prevKeyCode = 
-                inputBuffer[i].Event.KeyEvent.wVirtualKeyCode;
+                inputBuffer[inputRecIndex].Event.KeyEvent.wVirtualKeyCode;
           } break;
         }
       }
