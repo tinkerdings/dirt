@@ -51,7 +51,7 @@ variables so you can run dirt from anywhere using the command prompt.
 ### Keybindings
 | Input | function |
 |-------|:--------:|
-|**Q** or **Escape**|quit|
+|**Q**|quit|
 |**H** or **Left-Arrow** or **Backspace**|jump out to parent directory|
 |**J** or **Down-Arrow**|navigate down one entry|
 |**K** or **Up-Arrow**|navigate up one entry|
