@@ -10,6 +10,7 @@ namespace Dirt
   {
     WIN32_FIND_DATA *findDirectoryEntries(Context *context, char *dirPath, size_t &nEntries);
     bool getFullPath(char *out, char* relPath, size_t outLen);
+    bool addEntryToSelection(Context *context, char *path);
     bool removeEntryFromSelection(Context *, char *path);
     char **getSelection(Context *context, int &amountOut);
     void freeSelection(char **selection, int amount);

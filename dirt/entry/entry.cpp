@@ -107,6 +107,23 @@ namespace Dirt
       return entries;
     }
 
+    bool addEntryToSelection(Context *context, char *path)
+    {
+      int ret = hashmapInsert(context->selection, path, MAX_PATH);
+      if(ret == DIRT_ERROR_ALLOCATION_FAILURE)
+      {
+        printf("hashMapInsert failed with error DIRT_SEL_ALLOCATION_FAILURE (0x1)\n");
+        return false;
+      }
+      if(ret == DIRT_ERROR_INVALID_ENTRY)
+      {
+        printf("hashMapInsert failed with error DIRT_SEL_INVALID_ENTRY (0x2), for path: %s\n", path);
+        return false;
+      }
+
+      return true;
+    }
+
     bool removeEntryFromSelection(Context *context, char *path)
     {
       if(!Structures::hashmapRemove(context->selection, path, MAX_PATH))

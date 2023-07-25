@@ -213,15 +213,9 @@ namespace Dirt
                   }
                   else 
                   {
-                    int ret = hashmapInsert(context->selection, fullPath, MAX_PATH);
-                    if(ret == DIRT_ERROR_ALLOCATION_FAILURE)
+                    if(!Entry::addEntryToSelection(context, fullPath))
                     {
-                      printf("hashMapInsert failed with error DIRT_SEL_ALLOCATION_FAILURE (0x1)\n");
-                      break;
-                    }
-                    if(ret == DIRT_ERROR_INVALID_ENTRY)
-                    {
-                      printf("hashMapInsert failed with error DIRT_SEL_INVALID_ENTRY (0x2), for path: %s\n", fullPath);
+                      printf("addEntryToSelection failed\n");
                       break;
                     }
                   }
