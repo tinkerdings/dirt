@@ -53,6 +53,23 @@ namespace Dirt
       }
     }
 
+    void refresh(Context *context, ScreenData &screen)
+    {
+      clearScreen(screen);
+      setViewEntries(context, screen.leftView, false);
+      setViewEntries(context, screen.rightView, false);
+    }
+
+    void setViewEntries(Context *context, View &view, bool resizeBuffer)
+    {
+      free(view.entries);
+      view.entries = 0;
+      if(resizeBuffer)
+      {
+        context->entryBufferNSlots = DIRT_ENTRYBUFFER_SIZE;
+      }
+      view.entries = Entry::findDirectoryEntries(context, view.path, view.nEntries);
+    }
 
     bool allocScreen(ScreenData &screen)
     {
@@ -314,10 +331,7 @@ namespace Dirt
 
       strcpy(view.path, fullPath);
 
-      free(view.entries);
-      view.entries = 0;
-      context->entryBufferNSlots = DIRT_ENTRYBUFFER_SIZE;
-      view.entries = Entry::findDirectoryEntries(context, view.path, view.nEntries);
+      setViewEntries(context, view, true);
 
       view.cursorIndex = getStoredViewCursorIndex(view, 0, 0);
     }

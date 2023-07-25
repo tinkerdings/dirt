@@ -53,8 +53,10 @@ namespace Dirt
     void clearScreen(ScreenData &screen);
     View::CursorIndex getStoredViewCursorIndex(View &view, size_t *hashIndexOut, size_t *dupeIndexOut);
     void styleScreenViews(Context *context, ScreenData &screen);
+    void setViewEntries(Context *context, View &view, bool resizeBuffer);
     void incrementScreenCursorIndex(ScreenData &screen);
     void decrementScreenCursorIndex(ScreenData &screen);
+    void refresh(Context *context, ScreenData &screen);
   }
 }
 

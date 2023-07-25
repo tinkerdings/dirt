@@ -187,7 +187,10 @@ namespace Dirt
               case(VK_LEFT):
               case(VK_H):
               {
+                /* if(!isRootDir(screen.active.path)) */ // TODO Implement this
+                /* { */
                 setViewPath(context, *screen.active, "..");
+                /* } */
               } break;
               case(VK_SPACE):
               {
@@ -233,6 +236,10 @@ namespace Dirt
               {
                 Dirt::Entry::deleteSelection(context);
                 Dirt::Entry::clearAllSelection(context);
+              } break;
+              case(VK_R):
+              {
+                Screen::refresh(context, screen);
               } break;
             }
 

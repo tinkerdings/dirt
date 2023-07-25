@@ -14,6 +14,7 @@
 #define VK_D 0x44
 #define VK_E 0x45
 #define VK_X 0x58
+#define VK_R 0x52
 
 #define INPUTBUF_SIZE 3
 
