@@ -145,7 +145,7 @@ namespace Dirt
               case(VK_X):
               {
                 char fullPath[MAX_PATH] = {0};
-                if(!Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
+                if(!Entry::getFullPath(fullPath, screen.active->path, MAX_PATH))
                 {
                   printf("fullPath failed (%lu)\n", GetLastError());
                   break;
