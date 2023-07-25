@@ -71,5 +71,5 @@ _More to come_
 - Automatic refreshing of views
 - Ability to create directories
 - Ability to create files
-- Presentation of file/directory details, filetype, size, creation data etc.
+- Presentation of file/directory details, filetype, size, creation date etc.
 - Selection marks, to select muliple files with less keypresses
