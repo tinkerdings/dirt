@@ -65,6 +65,7 @@ variables so you can run dirt from anywhere using the command prompt.
 |**X**|Open command prompt in current directory|
 |**E**|Open windows explorer in current directory|
 |**R**|Refresh both views|
+|**1-9**|Change tab/screen|
 
 ## Features
 
@@ -75,6 +76,7 @@ variables so you can run dirt from anywhere using the command prompt.
 - [X] Moving selected files/directories
 - [X] Opening files with default applications for the selected filetype
 - [X] Dual pane view that one can switch between, for ease of use when moving files
+- [X] Multiple tabs that you can switch between
 - [X] Opening cmd in currently active directory
 - [X] Opening winows exlorer in currently active directory
 - [X] Manual refreshing of views
