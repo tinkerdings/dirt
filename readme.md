@@ -5,7 +5,7 @@ dir(ectory) t(amer)
 **WARNING**: Dirt is still a work in progress, not ready for release.\
 Use at your own risk, as certain features might not work as intended yet.
 
-Dirt is a simple and small teminal based file manager\
+Dirt is a simple and small terminal based file manager\
 for windows, with no dependencies.\
 Support for other platforms, may happen in the distant future.\
 It provides a split view of two directory listings\
@@ -64,6 +64,12 @@ variables so you can run dirt from anywhere using the command prompt.
 |**M**|move selected entries to currently viewed directory|
 |**X**|Open command prompt in current directory|
 |**E**|Open windows explorer in current directory|
+|**R**|Refresh both views|
 
 ## Planned features
-_coming soon_
+_More to come_
+- Automatic refreshing of views
+- Ability to create directories
+- Ability to create files
+- Presentation of file/directory details, filetype, size, creation data etc.
+- Selection marks, to select muliple files with less keypresses
