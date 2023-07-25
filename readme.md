@@ -66,10 +66,25 @@ variables so you can run dirt from anywhere using the command prompt.
 |**E**|Open windows explorer in current directory|
 |**R**|Refresh both views|
 
-## Planned features
+## Features
 _More to come_
-- Automatic refreshing of views
-- Ability to create directories
-- Ability to create files
-- Presentation of file/directory details, filetype, size, creation date etc.
-- Selection marks, to select muliple files with less keypresses
+
+**Already Implemented:**
+[X] Navigation in directories
+[X] Selecting files/directories
+[X] Deleting selected files/directories
+[X] Moving selected files/directories
+[X] Opening files with default applications for the selected filetype
+[X] Dual pane view that one can switch between, for ease of use when moving files
+[X] Opening cmd in currently active directory
+[X] Opening winows exlorer in currently active directory
+[X] Manual refreshing of views
+[X] Keyboard only based controls, for keeping your hands where they are comfortable ;)
+
+**Planned for future:**
+[ ] Handling navigation correctly for reparse points
+[ ] Automatic refreshing of views
+[ ] Ability to create directories
+[ ] Ability to create files
+[ ] Presentation of file/directory details, filetype, size, creation date etc.
+[ ] Selection marks, to select muliple files with less keypresses
