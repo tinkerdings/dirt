@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <wingdi.h>
 #include <winnt.h>
 #include <winuser.h>
 
@@ -28,7 +29,12 @@ int main(int argc, char **argv)
     return 1;
   }
 
+
   context->entryBufferNSlots = DIRT_ENTRYBUFFER_SIZE;
+  context->viewsContainer.pos[0] = 2;
+  context->viewsContainer.pos[1] = 4;
+  context->viewsContainer.width = 100;
+  context->viewsContainer.height = 40;
 
   if(!initScreens(context, DIRT_N_SCREENS))
   {
@@ -36,6 +42,17 @@ int main(int argc, char **argv)
     return 1;
   }
   Screen::setCurrentScreen(context, 0);
+
+  CONSOLE_FONT_INFOEX cfi = 
+  {
+    sizeof(cfi),
+    0,
+    0, 14,
+    FF_DONTCARE,
+    FW_NORMAL,
+    L"unifont"
+  };
+  SetCurrentConsoleFontEx(context->currentScreen->backBuffer, false, &cfi);
 
   if(!(context->selection = 
     hashmapCreate(
@@ -55,9 +72,10 @@ int main(int argc, char **argv)
   }
 
   SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
+
   while(!context->quit)
   {
-    renderScreenViews(*context->currentScreen);
+    renderScreenViews(*context->currentScreen, context->viewsContainer);
     styleScreenViews(context, *(context->currentScreen));
     highlightLine(context, *(context->currentScreen));
     swapScreenBuffers(*(context->currentScreen));

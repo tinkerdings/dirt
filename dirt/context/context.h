@@ -1,7 +1,8 @@
 #ifndef CONTEXT_H
 #define CONTEXT_H
 
-#include "dirt/predefinedValues.h"
+#include <dirt/predefinedValues.h>
+#include <dirt/structures/container.h>
 #include <windows.h>
 
 namespace Dirt
@@ -20,6 +21,7 @@ namespace Dirt
   {
     Screen::ScreenData **screens;
     Screen::ScreenData *currentScreen = 0;
+    Structures::Container viewsContainer = {0};
     HANDLE backBuffer = 0;
     HANDLE frontBuffer = 0;
     bool quit;

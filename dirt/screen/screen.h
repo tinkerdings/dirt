@@ -4,7 +4,7 @@
 #include <windows.h>
 #include <dirt/context/context.h>
 #include <dirt/structures/hashmap.h>
-
+#include <dirt/structures/container.h>
 
 using namespace Dirt::Structures;
 
@@ -34,28 +34,25 @@ namespace Dirt
       Hashmap *cursorMap;
     };
 
-    struct Container
-    {
-      uint16_t pos[2] = {0};
-      uint16_t width = 0;
-      uint16_t height = 0;
-    };
-
     struct ScreenData
     {
       HANDLE backBuffer, frontBuffer;
       View leftView, rightView, *active;
-      Container viewContainer;
     };
 
     bool initScreens(Context *context, int nScreens);
-    bool initScreenViews(Context *context, ScreenData &screen);
+    bool initScreenViews(Context *context, ScreenData &screen, Container container);
     void setCurrentScreen(Context *context, int unsigned number);
     void setViewPath(Context *context, View &view, char *relPath);
     void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
-    void renderScreenViews(ScreenData &screen);
+    void renderScreenViews(ScreenData &screen, Container container);
+    void renderTabsContainer(Context *context, Container *container);
+    void renderContainerBorder(ScreenData &screen, Container container);
+    void renderHorizontalLineWithCharacter(ScreenData &screen, COORD startPos, COORD endPos, WCHAR *character);
+    void renderVerticalLineWithCharacter(ScreenData &screen, COORD startPos, COORD endPos, WCHAR *character);
+    void sizeScreenViews(ScreenData &screen, Container container);
     void renderView(ScreenData &screen, View &view);
-    void styleView(Context *context, HANDLE screenBuffer, View view);
+    void styleView(Context *context, ScreenData &screen, View view);
     void highlightLine(Context *context, ScreenData &screen);
     void swapScreenBuffers(ScreenData &screen);
     bool setActiveView(ScreenData &screen, View &view);
@@ -63,8 +60,8 @@ namespace Dirt
     View::CursorIndex getStoredViewCursorIndex(View &view, size_t *hashIndexOut, size_t *dupeIndexOut);
     void styleScreenViews(Context *context, ScreenData &screen);
     void setViewEntries(Context *context, View &view, bool resizeBuffer);
-    void incrementScreenCursorIndex(ScreenData &screen);
-    void decrementScreenCursorIndex(ScreenData &screen);
+    void incrementScreenCursorIndex(Context *context, ScreenData &screen);
+    void decrementScreenCursorIndex(Context *context, ScreenData &screen);
     void refresh(Context *context, ScreenData &screen);
   }
 }

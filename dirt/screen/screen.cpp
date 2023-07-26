@@ -94,7 +94,7 @@ namespace Dirt
           return false;
         }
 
-        if(!initScreenViews(context, *context->screens[i]))
+        if(!initScreenViews(context, *context->screens[i], context->viewsContainer))
         {
           for(int j = i; j >= 0; j--)
           {
@@ -145,11 +145,86 @@ namespace Dirt
       return true;
     }
 
-    void renderScreenViews(ScreenData &screen)
+    void renderContainerBorder(ScreenData &screen, Container container)
+    {
+      SetConsoleOutputCP(65001);
+
+      WCHAR horizontalChar[255];
+      WCHAR verticalChar[255];
+
+      MultiByteToWideChar(CP_UTF8, MB_COMPOSITE | MB_USEGLYPHCHARS, "═", -1, horizontalChar, 255);
+      MultiByteToWideChar(CP_UTF8, MB_COMPOSITE | MB_USEGLYPHCHARS, "║", -1, verticalChar, 255);
+
+      COORD topStart = {(SHORT)(container.pos[0] + 1), (SHORT)container.pos[1]};
+      COORD topEnd = {(SHORT)(container.pos[0] + container.width), (SHORT)container.pos[1]};
+      renderHorizontalLineWithCharacter(screen, topStart, topEnd, horizontalChar);
+      COORD bottomStart = {(SHORT)(container.pos[0] + 1), (SHORT)(container.pos[1]+container.height)};
+      COORD bottomEnd = {(SHORT)(container.pos[0] + container.width), (SHORT)(container.pos[1] + container.height)};
+      renderHorizontalLineWithCharacter(screen, bottomStart, bottomEnd, horizontalChar);
+
+      COORD leftStart = {(SHORT)(container.pos[0]), (SHORT)(container.pos[1])};
+      COORD leftEnd = {(SHORT)(container.pos[0]), (SHORT)(container.pos[1] + container.height+1)};
+      renderVerticalLineWithCharacter(screen, leftStart, leftEnd, verticalChar);
+      COORD rightStart = {(SHORT)(container.pos[0] + container.width), (SHORT)(container.pos[1])};
+      COORD rightEnd = {(SHORT)(container.pos[0] + container.width), (SHORT)(container.pos[1] + container.height+1)};
+      renderVerticalLineWithCharacter(screen, rightStart, rightEnd, verticalChar);
+
+      COORD split1Start = {(SHORT)(container.pos[0] + container.width/2), (SHORT)(container.pos[1] + 1)};
+      COORD split1End = {(SHORT)(container.pos[0] + container.width/2), (SHORT)(container.pos[1] + container.height)};
+      renderVerticalLineWithCharacter(screen, split1Start, split1End, verticalChar);
+      COORD split2Start = {(SHORT)(container.pos[0] + container.width/2-1), (SHORT)(container.pos[1] + 1)};
+      COORD split2End = {(SHORT)(container.pos[0] + container.width/2-1), (SHORT)(container.pos[1] + container.height)};
+      renderVerticalLineWithCharacter(screen, split2Start, split2End, verticalChar);
+    }
+
+    void renderScreenViews(ScreenData &screen, Container container)
     {
       clearScreen(screen);
       renderView(screen, screen.leftView);
       renderView(screen, screen.rightView);
+      renderContainerBorder(screen, container);
+    }
+
+    void renderVerticalLineWithCharacter(ScreenData &screen, COORD startPos, COORD endPos, WCHAR *character)
+    {
+      CHAR_INFO buffer[2048] = {0};
+
+      for(int i = 0; i < min(endPos.Y-startPos.Y, 2048); i++)
+      {
+        CHAR_INFO ci = {*character, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE };
+        buffer[i] = ci;
+      }
+
+      COORD dimensions = {1, (SHORT)(endPos.Y-startPos.Y)};
+      COORD bufferStartPos = {0, 0};
+      SMALL_RECT rect = {startPos.X, startPos.Y, endPos.X, endPos.Y};
+
+      if(!WriteConsoleOutput(screen.backBuffer, buffer, dimensions, bufferStartPos, &rect))
+      {
+        printf("%s%dWriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
+        return;
+      }
+    }
+
+    void renderHorizontalLineWithCharacter(ScreenData &screen, COORD startPos, COORD endPos, WCHAR *character)
+    {
+      CHAR_INFO buffer[2048] = {0};
+
+      for(int i = 0; i < min(endPos.X-startPos.X, 2048); i++)
+      {
+        CHAR_INFO ci = {*character, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE };
+        buffer[i] = ci;
+      }
+
+      COORD dimensions = {(SHORT)(endPos.X-startPos.X), 1};
+      COORD bufferStartPos = {0, 0};
+      SMALL_RECT rect = {startPos.X, startPos.Y, endPos.X, endPos.Y};
+
+      if(!WriteConsoleOutput(screen.backBuffer, buffer, dimensions, bufferStartPos, &rect))
+      {
+        printf("%s%dWriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
+        return;
+      }
     }
 
     void renderView(ScreenData &screen, View &view)
@@ -160,14 +235,14 @@ namespace Dirt
         CHAR_INFO filename[MAX_PATH] = {0};
         bool isDirectory = (view.entries[i].dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
         createFilenameCharInfoBuffer(filename, view.entries[i].cFileName, view.width, isDirectory);
-        COORD filenameSize {view.width, 1};
+        COORD filenameDimensions = {view.width, 1};
         COORD filenamePos = {0, 0};
         SMALL_RECT rect;
         rect.Top = view.renderRect.Top+(SHORT)i-(SHORT)view.cursorIndex.scroll;
         rect.Left = view.renderRect.Left;
         rect.Bottom = view.renderRect.Bottom;
         rect.Right = view.renderRect.Right;
-        if(!WriteConsoleOutput(screen.backBuffer, filename, filenameSize, filenamePos, &rect))
+        if(!WriteConsoleOutput(screen.backBuffer, filename, filenameDimensions, filenamePos, &rect))
         {
           printf("%s%dWriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
           return;
@@ -175,7 +250,7 @@ namespace Dirt
       }
     }
 
-    void styleView(Context *context, HANDLE screenBuffer, View view)
+    void styleView(Context *context, ScreenData &screen, View view)
     {
       size_t minHeight = min(view.nEntries, view.height+view.cursorIndex.scroll);
       for(int i = view.cursorIndex.scroll; i < minHeight; i++)
@@ -186,14 +261,14 @@ namespace Dirt
         
         COORD coords;
         coords.X = view.renderRect.Left;
-        coords.Y = i-view.cursorIndex.scroll;
+        coords.Y = view.renderRect.Top + i-view.cursorIndex.scroll;
         size_t filenameLength = strlen(view.entries[i].cFileName);
         DWORD nSet = 0;
 
         if(attributes & FILE_ATTRIBUTE_DIRECTORY)
         {
         FillConsoleOutputAttribute(
-            screenBuffer,
+            screen.backBuffer,
             FOREGROUND_RED | FOREGROUND_GREEN,
             filenameLength+1,
             coords,
@@ -206,7 +281,7 @@ namespace Dirt
         if(hashmapContains(context->selection, fullPath, context->selection->dataSize, 0, 0))
         {
           FillConsoleOutputAttribute(
-              screenBuffer,
+              screen.backBuffer,
               FOREGROUND_GREEN,
               filenameLength,
               coords,
@@ -225,7 +300,7 @@ namespace Dirt
       COORD coords;
       DWORD nSet = 0;
       coords.X = screen.active->renderRect.Left;
-      coords.Y = screen.active->cursorIndex.visualIndex;
+      coords.Y = screen.active->renderRect.Top + screen.active->cursorIndex.visualIndex;
       WORD attribs = BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
 
       char fullPath[MAX_PATH] = {0};
@@ -259,8 +334,8 @@ namespace Dirt
 
     void styleScreenViews(Context *context, ScreenData &screen)
     {
-      styleView(context, screen.backBuffer, screen.leftView);
-      styleView(context, screen.backBuffer, screen.rightView);
+      styleView(context, screen, screen.leftView);
+      styleView(context, screen, screen.rightView);
       highlightLine(context, *(context->currentScreen));
     }
 
@@ -294,7 +369,29 @@ namespace Dirt
       setViewPath(context, context->currentScreen->rightView, context->currentScreen->rightView.path);
     }
 
-    bool initScreenViews(Context *context, ScreenData &screen)
+    void renderTabsContainer(Context *context, Container *container)
+    {
+
+    }
+
+    void sizeScreenViews(ScreenData &screen, Container container)
+    {
+      screen.leftView.renderRect.Top = container.pos[1] + 1;
+      screen.leftView.renderRect.Left = container.pos[0] + 1;
+      screen.leftView.renderRect.Bottom = screen.leftView.renderRect.Top + container.height - 2;
+      screen.leftView.renderRect.Right = screen.leftView.renderRect.Left + (container.width/2) - 2;
+      screen.leftView.width = screen.leftView.renderRect.Right - screen.leftView.renderRect.Left;
+      screen.leftView.height = screen.leftView.renderRect.Bottom - screen.leftView.renderRect.Top;
+
+      screen.rightView.renderRect.Top = container.pos[1] + 1;
+      screen.rightView.renderRect.Left = screen.leftView.renderRect.Right + 2;
+      screen.rightView.renderRect.Bottom = screen.rightView.renderRect.Top + container.height - 2;
+      screen.rightView.renderRect.Right = screen.rightView.renderRect.Left + (container.width/2) - 2;
+      screen.rightView.width = screen.rightView.renderRect.Right - screen.rightView.renderRect.Left;
+      screen.rightView.height = screen.rightView.renderRect.Bottom - screen.rightView.renderRect.Top;
+    }
+
+    bool initScreenViews(Context *context, ScreenData &screen, Container container)
     {
       char currentDir[MAX_PATH] = {0};
       if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
@@ -302,18 +399,17 @@ namespace Dirt
         printf("initScreenViews:GetCurrentDirectory failed (%lu)\n", GetLastError());
         return false;
       }
+
       screen.leftView.cursorMap = 
         hashmapCreate(
           DIRT_CURSORINDICES_MIN_SIZE,
           DIRT_CURSORINDICES_MIN_DUPES,
           sizeof(View::CursorMapEntry));
+
       strcpy(screen.leftView.path, currentDir);
-      screen.leftView.renderRect.Top = 0;
-      screen.leftView.renderRect.Left = 0;
-      screen.leftView.renderRect.Bottom = 30;
-      screen.leftView.renderRect.Right = 40;
-      screen.leftView.width = screen.leftView.renderRect.Right - screen.leftView.renderRect.Left;
-      screen.leftView.height = screen.leftView.renderRect.Bottom - screen.leftView.renderRect.Top;
+
+      sizeScreenViews(screen, container);
+
       screen.leftView.entries = Entry::findDirectoryEntries(context, screen.leftView.path, screen.leftView.nEntries);
       if(!screen.leftView.entries)
       {
@@ -326,13 +422,11 @@ namespace Dirt
             DIRT_CURSORINDICES_MIN_SIZE,
             DIRT_CURSORINDICES_MIN_DUPES,
             sizeof(View::CursorMapEntry));
+
       strcpy(screen.rightView.path, "C:\\");
-      screen.rightView.renderRect.Top = 0;
-      screen.rightView.renderRect.Left = 42;
-      screen.rightView.renderRect.Bottom = 30;
-      screen.rightView.renderRect.Right = 82;
-      screen.rightView.width = screen.rightView.renderRect.Right - screen.rightView.renderRect.Left;
-      screen.rightView.height = screen.rightView.renderRect.Bottom - screen.rightView.renderRect.Top;
+
+      sizeScreenViews(screen, container);
+
       screen.rightView.entries = Entry::findDirectoryEntries(context, screen.rightView.path, screen.rightView.nEntries);
       if(!screen.rightView.entries)
       {
@@ -445,7 +539,7 @@ namespace Dirt
       return zeroIndex;
     }
 
-    void incrementScreenCursorIndex(ScreenData &screen)
+    void incrementScreenCursorIndex(Context *context, ScreenData &screen)
     {
       View::CursorIndex currentIndex = screen.active->cursorIndex;
       if(currentIndex.actualIndex < (screen.active->nEntries-1))
@@ -454,7 +548,7 @@ namespace Dirt
         if(currentIndex.visualIndex == screen.active->height-1)
         {
           screen.active->cursorIndex.scroll++;
-          renderScreenViews(screen);
+          renderScreenViews(screen, context->viewsContainer);
         }
       }
       size_t minHeight = min(screen.active->height-1, screen.active->nEntries-1);
@@ -464,7 +558,7 @@ namespace Dirt
       }
     }
 
-    void decrementScreenCursorIndex(ScreenData &screen)
+    void decrementScreenCursorIndex(Context *context, ScreenData &screen)
     {
       View::CursorIndex currentIndex = screen.active->cursorIndex;
       if(currentIndex.actualIndex > 0)
@@ -473,7 +567,7 @@ namespace Dirt
         if(currentIndex.visualIndex == 0)
         {
           screen.active->cursorIndex.scroll--;
-          renderScreenViews(screen);
+          renderScreenViews(screen, context->viewsContainer);
         }
       }
       if(currentIndex.visualIndex > 0)

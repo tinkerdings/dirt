@@ -46,12 +46,12 @@ namespace Dirt
               case(VK_DOWN):
               case(VK_J):
               {
-                incrementScreenCursorIndex(screen);
+                incrementScreenCursorIndex(context, screen);
               } break;
               case(VK_UP):
               case(VK_K):
               {
-                decrementScreenCursorIndex(screen);
+                decrementScreenCursorIndex(context, screen);
               } break;
               case(VK_TAB):
               {
