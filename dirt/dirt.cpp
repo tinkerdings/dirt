@@ -18,6 +18,8 @@
 
 using namespace Dirt;
 
+typedef char u32[4];
+
 int main(int argc, char **argv)
 {
   CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -43,16 +45,16 @@ int main(int argc, char **argv)
   }
   Screen::setCurrentScreen(context, 0);
 
-  CONSOLE_FONT_INFOEX cfi = 
-  {
-    sizeof(cfi),
-    0,
-    0, 14,
-    FF_DONTCARE,
-    FW_NORMAL,
-    L"unifont"
-  };
-  SetCurrentConsoleFontEx(context->currentScreen->backBuffer, false, &cfi);
+  /* CONSOLE_FONT_INFOEX cfi = */ 
+  /* { */
+  /*   sizeof(cfi), */
+  /*   0, */
+  /*   0, 14, */
+  /*   FF_DONTCARE, */
+  /*   FW_NORMAL, */
+  /*   L"unifont" */
+  /* }; */
+  /* SetCurrentConsoleFontEx(context->currentScreen->backBuffer, false, &cfi); */
 
   if(!(context->selection = 
     hashmapCreate(
