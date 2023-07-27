@@ -7,6 +7,7 @@
 #include <dirt/screen/screen.h>
 #include <dirt/error/errorCode.h>
 #include <dirt/entry/entry.h>
+#include <dirt/rendering/rendering.h>
 
 namespace Dirt
 {
@@ -235,7 +236,7 @@ namespace Dirt
               } break;
               case(VK_R):
               {
-                Screen::refresh(context, screen);
+                Rendering::refresh(context, screen);
               } break;
               case(VK_1):
               case(VK_2):

@@ -87,6 +87,7 @@ namespace Dirt
           splitBox->top = createSplitBox(topContainer, childGlyphs);
           splitBox->bottom = createSplitBox(bottomContainer, childGlyphs);
         } break;
+
         case(DIRT_SPLIT_VERTICAL):
         {
           Structures::Container leftContainer;

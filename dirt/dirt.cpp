@@ -15,10 +15,9 @@
 #include <dirt/input/input.h>
 #include <dirt/screen/screen.h>
 #include <dirt/predefinedValues.h>
+#include <dirt/rendering/rendering.h>
 
 using namespace Dirt;
-
-typedef char u32[4];
 
 int main(int argc, char **argv)
 {
@@ -77,10 +76,10 @@ int main(int argc, char **argv)
 
   while(!context->quit)
   {
-    renderScreenViews(*context->currentScreen, context->viewsContainer);
-    styleScreenViews(context, *(context->currentScreen));
-    highlightLine(context, *(context->currentScreen));
-    swapScreenBuffers(*(context->currentScreen));
+    Rendering::renderScreenViews(*context->currentScreen, context->viewsContainer);
+    Rendering::styleScreenViews(context, *(context->currentScreen));
+    Rendering::highlightLine(context, *(context->currentScreen));
+    Rendering::swapScreenBuffers(*(context->currentScreen));
     Input::handleInput(context, *(context->currentScreen), stdinHandle);
   }
 
