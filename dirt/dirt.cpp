@@ -16,6 +16,7 @@
 #include <dirt/screen/screen.h>
 #include <dirt/predefinedValues.h>
 #include <dirt/rendering/rendering.h>
+#include <dirt/structures/splitBox.h>
 
 using namespace Dirt;
 
@@ -74,10 +75,25 @@ int main(int argc, char **argv)
 
   SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
 
+  BoxGlyphs boxGlyphs;
+  boxGlyphs.horizontal = "═";
+  boxGlyphs.vertical = "║";
+  boxGlyphs.topLeft = "╔";
+  boxGlyphs.topRight = "╗";
+  boxGlyphs.bottomLeft = "╚";
+  boxGlyphs.bottomRight = "╝";
+  boxGlyphs.splitVerticalLeft = "╠";
+  boxGlyphs.splitVerticalRight = "╣";
+  boxGlyphs.splitHorizontalTop = "╦";
+  boxGlyphs.splitHorizontalBottom = "╩";
+  boxGlyphs.splitCross = "╬";
+  Structures::SplitBox *box = createSplitBox(context->viewsContainer, boxGlyphs);
+
   while(!context->quit)
   {
     Rendering::renderScreenViews(*context->currentScreen, context->viewsContainer);
     Rendering::styleScreenViews(context, *(context->currentScreen));
+    Rendering::renderSplitBox(*context->currentScreen, box);
     Rendering::highlightLine(context, *(context->currentScreen));
     Rendering::swapScreenBuffers(*(context->currentScreen));
     Input::handleInput(context, *(context->currentScreen), stdinHandle);

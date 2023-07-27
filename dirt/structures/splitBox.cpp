@@ -12,6 +12,7 @@ namespace Dirt
         return 0;
       }
       splitBox->glyphs = glyphs;
+      splitBox->container = container;
 
       return splitBox;
     }

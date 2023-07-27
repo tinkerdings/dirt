@@ -10,13 +10,14 @@ namespace Dirt
 {
   namespace Rendering
   {
-    void renderSplitBox(Structures::SplitBox *splitBox);
+    void renderSplitBox(Screen::ScreenData &screen, Structures::SplitBox *splitBox);
     void renderScreenViews(Screen::ScreenData &screen, Container container);
     void renderTabsContainer(Context *context, Container *container);
     void renderContainerBorder(Screen::ScreenData &screen, Container container);
-    void renderHorizontalLineWithCharacter(Screen::ScreenData &screen, COORD startPos, COORD endPos, WCHAR *character);
-    void renderVerticalLineWithCharacter(Screen::ScreenData &screen, COORD startPos, COORD endPos, WCHAR *character);
+    void renderHorizontalLineWithCharacter(Screen::ScreenData &screen, SHORT xStart, SHORT yStart, SHORT xEnd, SHORT yEnd, char *character);
+    void renderVerticalLineWithCharacter(Screen::ScreenData &screen, SHORT xStart, SHORT yStart, SHORT xEnd, SHORT yEnd, char *character);
     void renderView(Screen::ScreenData &screen, Screen::View &view);
+    void renderUnicodeCharacter(Screen::ScreenData &screen, SHORT x, SHORT y, char *character, WORD attributes);
     void styleView(Context *context, Screen::ScreenData &screen, Screen::View view);
     void clearScreen(Screen::ScreenData &screen);
     void styleScreenViews(Context *context, Screen::ScreenData &screen);

@@ -14,18 +14,17 @@ namespace Dirt
   {
     struct BoxGlyphs
     {
-      WCHAR left;
-      WCHAR right;
-      WCHAR top;
-      WCHAR bottom;
-      WCHAR topLeft;
-      WCHAR topRight;
-      WCHAR bottomLeft;
-      WCHAR bottomRight;
-      WCHAR splitHorizontalLeft;
-      WCHAR splitHorizontalRight;
-      WCHAR splitVerticalLeft;
-      WCHAR splitVerticalRight;
+      char *horizontal;
+      char *vertical;
+      char *topLeft;
+      char *topRight;
+      char *bottomLeft;
+      char *bottomRight;
+      char *splitHorizontalTop;
+      char *splitHorizontalBottom;
+      char *splitVerticalLeft;
+      char *splitVerticalRight;
+      char *splitCross;
     };
 
     struct SplitBox
