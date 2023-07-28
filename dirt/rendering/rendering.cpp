@@ -215,19 +215,31 @@ namespace Dirt
       }
     }
 
-    void renderUnicodeCharacter(Screen::ScreenData &screen, SHORT x, SHORT y, char *character, WORD attributes)
+    int utf8ToUtf16(char *utf8, WCHAR *utf16, int outBufSize)
     {
-      WCHAR utf16Char[32] = {0};
       int len = MultiByteToWideChar(
           CP_UTF8,
           MB_COMPOSITE | MB_USEGLYPHCHARS,
-          character,
+          utf8,
           -1,
-          utf16Char,
-          32
+          utf16,
+          outBufSize
           );
+      return --len;
+    }
 
-      len--;
+    CHAR_INFO createGlyphWithAttributes(char *utf8, WORD attributes)
+    {
+      WCHAR utf16[32] = {0};
+      int len = utf8ToUtf16(utf8, utf16, 32);
+      CHAR_INFO glyph = {*utf16, attributes};
+      return glyph;
+    }
+
+    void renderUnicodeCharacter(Screen::ScreenData &screen, SHORT x, SHORT y, char *character, WORD attributes)
+    {
+      WCHAR utf16Char[32] = {0};
+      int len = utf8ToUtf16(character, utf16Char, 32);
 
       DWORD nWritten = 0;
       COORD coords;
@@ -280,38 +292,89 @@ namespace Dirt
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
       }
 
-      renderHorizontalLineWithCharacter(
+      // Top line
+      renderCardinalLineWithGlyph(
           screen,
-          splitBox->container.pos[0]+1,
+          DIRT_DIRECTION_HORIZONTAL,
+          splitBox->container.pos[0] + 1,
           splitBox->container.pos[1],
-          splitBox->container.pos[0]+splitBox->container.width-1,
-          splitBox->container.pos[1],
+          splitBox->container.width - 1,
           splitBox->glyphs.horizontal);
+      // Bottom line
+      renderCardinalLineWithGlyph(
+          screen,
+          DIRT_DIRECTION_HORIZONTAL,
+          splitBox->container.pos[0] + 1,
+          splitBox->container.pos[1] + splitBox->container.height,
+          splitBox->container.width - 1,
+          splitBox->glyphs.horizontal);
+      // Left line
+      renderCardinalLineWithGlyph(
+          screen,
+          DIRT_DIRECTION_VERTICAL,
+          splitBox->container.pos[0],
+          splitBox->container.pos[1] + 1,
+          splitBox->container.height - 1,
+          splitBox->glyphs.vertical);
+      // Right line
+      renderCardinalLineWithGlyph(
+          screen,
+          DIRT_DIRECTION_VERTICAL,
+          splitBox->container.pos[0] + splitBox->container.width,
+          splitBox->container.pos[1] + 1,
+          splitBox->container.height - 1,
+          splitBox->glyphs.vertical);
     }
 
-    void renderVerticalLineWithCharacter(Screen::ScreenData &screen, SHORT xStart, SHORT yStart, SHORT xEnd, SHORT yEnd, WCHAR *character)
+    void renderCardinalLineWithGlyph(
+        Screen::ScreenData &screen,
+        uint8_t direction, // DIRT_DIRECTION_HORIZONTAL or DIRT_DIRECTION_VERTICAL
+        SHORT startX,
+        SHORT startY,
+        SHORT signedLength, // Signed length along specified axis, by direction parameter
+        char *character)
     {
       CHAR_INFO buffer[2048] = {0};
 
-      COORD start;
-      start.X = xStart;
-      start.Y = yStart;
-      COORD end;
-      end.X = xEnd;
-      end.Y = yEnd;
-
-      int len = end.Y - start.Y;
+      int len = signedLength;
+      if(signedLength < 0)
+      {
+        len = -1*signedLength;
+      }
       if(len < 1)
       {
         len = 1;
       }
       for(int i = 0; i < min(len, 2048); i++)
       {
-        CHAR_INFO ci = {*character, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE };
+        CHAR_INFO ci = createGlyphWithAttributes(character, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         buffer[i] = ci;
       }
 
-      COORD dimensions = {1, (SHORT)(len)};
+      COORD dimensions;
+      COORD start;
+      COORD end;
+      switch(direction)
+      {
+        case(DIRT_DIRECTION_HORIZONTAL):
+        {
+          start.X = startX;
+          start.Y = startY;
+          end.X = start.X + signedLength;
+          end.Y = start.Y;
+          dimensions.X = (SHORT)len;
+          dimensions.Y = 1;
+        } break;
+        case(DIRT_DIRECTION_VERTICAL):
+        {
+          start.X = startX;
+          start.Y = startY;
+          end.X = start.X;
+          end.Y = start.Y + signedLength;
+          dimensions.X = 1;
+          dimensions.Y = (SHORT)len;
+        } break;
+      }
       COORD bufferStartPos = {0, 0};
       SMALL_RECT rect = {start.X, start.Y, end.X, end.Y};
 
@@ -321,106 +384,5 @@ namespace Dirt
         return;
       }
     }
-
-    void renderHorizontalLineWithCharacter(Screen::ScreenData &screen, SHORT xStart, SHORT yStart, SHORT xEnd, SHORT yEnd, char *character)
-    {
-      CHAR_INFO buffer[2048] = {0};
-
-      COORD start;
-      start.X = xStart;
-      start.Y = yStart;
-      COORD end;
-      end.X = xEnd;
-      end.Y = yEnd;
-
-      int len = end.X - start.X;
-      if(len < 1)
-      {
-        len = 1;
-      }
-      for(int i = 0; i < min(len, 2048); i++)
-      {
-        CHAR_INFO ci = {character, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE };
-        buffer[i] = ci;
-      }
-
-      COORD dimensions = {(SHORT)(len), 1};
-      COORD bufferStartPos = {0, 0};
-      SMALL_RECT rect = {start.X, start.Y, end.X, end.Y};
-
-      if(!WriteConsoleOutputW(screen.backBuffer, buffer, dimensions, bufferStartPos, &rect))
-      {
-        printf("%s%dWriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
-        return;
-      }
-    }
-
-    /* void renderContainerBorder(Screen::ScreenData &screen, Container container) */
-    /* { */
-    /*   SetConsoleOutputCP(65001); */
-
-    /*   WCHAR horizontalChar[255]; */
-    /*   WCHAR verticalChar[255]; */
-    /*   WCHAR topSplitChar[255]; */
-    /*   WCHAR bottomSplitChar[255]; */
-    /*   WCHAR topLeftChar[255]; */
-    /*   WCHAR topRightChar[255]; */
-    /*   WCHAR bottomLeftChar[255]; */
-    /*   WCHAR bottomRightChar[255]; */
-
-    /*   MultiByteToWideChar(CP_UTF8, MB_COMPOSITE | MB_USEGLYPHCHARS, "═", -1, horizontalChar, 255); */
-    /*   MultiByteToWideChar(CP_UTF8, MB_COMPOSITE | MB_USEGLYPHCHARS, "║", -1, verticalChar, 255); */
-    /*   MultiByteToWideChar(CP_UTF8, MB_COMPOSITE | MB_USEGLYPHCHARS, "╦", -1, topSplitChar, 255); */
-    /*   MultiByteToWideChar(CP_UTF8, MB_COMPOSITE | MB_USEGLYPHCHARS, "╩", -1, bottomSplitChar, 255); */
-    /*   MultiByteToWideChar(CP_UTF8, MB_COMPOSITE | MB_USEGLYPHCHARS, "╔", -1, topLeftChar, 255); */
-    /*   MultiByteToWideChar(CP_UTF8, MB_COMPOSITE | MB_USEGLYPHCHARS, "╗", -1, topRightChar, 255); */
-    /*   MultiByteToWideChar(CP_UTF8, MB_COMPOSITE | MB_USEGLYPHCHARS, "╚", -1, bottomLeftChar, 255); */
-    /*   MultiByteToWideChar(CP_UTF8, MB_COMPOSITE | MB_USEGLYPHCHARS, "╝", -1, bottomRightChar, 255); */
-
-    /*   COORD topStart = {(SHORT)(container.pos[0] + 1), (SHORT)container.pos[1]}; */
-    /*   COORD topEnd = {(SHORT)(container.pos[0] + container.width), (SHORT)container.pos[1]}; */
-    /*   renderHorizontalLineWithCharacter(screen, topStart, topEnd, horizontalChar); */
-    /*   COORD bottomStart = {(SHORT)(container.pos[0] + 1), (SHORT)(container.pos[1]+container.height)}; */
-    /*   COORD bottomEnd = {(SHORT)(container.pos[0] + container.width), (SHORT)(container.pos[1] + container.height)}; */
-    /*   renderHorizontalLineWithCharacter(screen, bottomStart, bottomEnd, horizontalChar); */
-
-    /*   COORD leftStart = {(SHORT)(container.pos[0]), (SHORT)(container.pos[1])}; */
-    /*   COORD leftEnd = {(SHORT)(container.pos[0]), (SHORT)(container.pos[1] + container.height+1)}; */
-    /*   renderVerticalLineWithCharacter(screen, leftStart, leftEnd, verticalChar); */
-    /*   COORD rightStart = {(SHORT)(container.pos[0] + container.width), (SHORT)(container.pos[1])}; */
-    /*   COORD rightEnd = {(SHORT)(container.pos[0] + container.width), (SHORT)(container.pos[1] + container.height+1)}; */
-    /*   renderVerticalLineWithCharacter(screen, rightStart, rightEnd, verticalChar); */
-
-    /*   COORD split1Start = {(SHORT)(container.pos[0] + container.width/2), (SHORT)(container.pos[1] + 1)}; */
-    /*   COORD split1End = {(SHORT)(container.pos[0] + container.width/2), (SHORT)(container.pos[1] + container.height)}; */
-    /*   renderVerticalLineWithCharacter(screen, split1Start, split1End, verticalChar); */
-    /*   COORD split2Start = {(SHORT)(container.pos[0] + container.width/2-1), (SHORT)(container.pos[1] + 1)}; */
-    /*   COORD split2End = {(SHORT)(container.pos[0] + container.width/2-1), (SHORT)(container.pos[1] + container.height)}; */
-    /*   renderVerticalLineWithCharacter(screen, split2Start, split2End, verticalChar); */
-
-    /*   COORD topSplitCoord1 = {(SHORT)(container.pos[0] + (container.width/2)-1), (SHORT)(container.pos[1])}; */
-    /*   renderVerticalLineWithCharacter(screen, topSplitCoord1, topSplitCoord1, topSplitChar); */
-
-    /*   COORD topSplitCoord2 = {(SHORT)(container.pos[0] + (container.width/2)), (SHORT)(container.pos[1])}; */
-    /*   renderVerticalLineWithCharacter(screen, topSplitCoord2, topSplitCoord2, topSplitChar); */
-
-    /*   COORD bottomSplitCoord1 = {(SHORT)(container.pos[0] + container.width/2), (SHORT)(container.pos[1] + container.height)}; */
-    /*   renderVerticalLineWithCharacter(screen, bottomSplitCoord1, bottomSplitCoord1, bottomSplitChar); */
-
-    /*   COORD bottomSplitCoord2 = {(SHORT)(container.pos[0] + (container.width/2) - 1), (SHORT)(container.pos[1] + container.height)}; */
-    /*   renderVerticalLineWithCharacter(screen, bottomSplitCoord2, bottomSplitCoord2, bottomSplitChar); */
-
-    /*   COORD topLeftCoord = {(SHORT)(container.pos[0]), (SHORT)(container.pos[1])}; */
-    /*   renderVerticalLineWithCharacter(screen, topLeftCoord, topLeftCoord, topLeftChar); */
-
-    /*   COORD topRightCoord = {(SHORT)(container.pos[0] + container.width), (SHORT)(container.pos[1])}; */
-    /*   renderVerticalLineWithCharacter(screen, topRightCoord, topRightCoord, topRightChar); */
-
-    /*   COORD bottomLeftCoord = {(SHORT)(container.pos[0]), (SHORT)(container.pos[1]+container.height)}; */
-    /*   renderVerticalLineWithCharacter(screen, bottomLeftCoord, bottomLeftCoord, bottomLeftChar); */
-
-    /*   COORD bottomRightCoord = {(SHORT)(container.pos[0] + container.width), (SHORT)(container.pos[1]+container.height)}; */
-    /*   renderVerticalLineWithCharacter(screen, bottomRightCoord, bottomRightCoord, bottomRightChar); */
-    /* } */
   }
 }
