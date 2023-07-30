@@ -43,9 +43,9 @@ namespace Dirt
     };
 
     SplitBox *createSplitBox(Structures::Container container, BoxGlyphs glyphs);
-    void destroySplitBox(SplitBox *splitBox);
+    void destroySplitBox(SplitBox *splitBox, uint8_t &splitDeleteCounter);
     void incrementSplitCounter(SplitBox *splitBox);
-    void addSplit(SplitBox *splitBox, uint8_t splitType, uint16_t offsetAlongAxis);
+    void addSplit(SplitBox *splitBox, uint8_t splitType, uint16_t offsetAlongOrthogonalAxis, BoxGlyphs *newGlyphs);
   }
 }
 

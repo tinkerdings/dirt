@@ -60,8 +60,13 @@ namespace Dirt
       }
     }
 
-    void addSplit(SplitBox *splitBox, uint8_t splitType, uint16_t offsetAlongAxis, BoxGlyphs *newGlyphs)
+    void addSplit(SplitBox *splitBox, uint8_t splitType, uint16_t offsetAlongOrthogonalAxis, BoxGlyphs *newGlyphs)
     {
+      if(!splitBox->parent)
+      {
+        return;
+      }
+
       incrementSplitCounter(splitBox);
       BoxGlyphs childGlyphs = splitBox->glyphs;
       if(newGlyphs)

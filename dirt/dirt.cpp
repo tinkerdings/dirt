@@ -31,7 +31,6 @@ int main(int argc, char **argv)
     return 1;
   }
 
-
   context->entryBufferNSlots = DIRT_ENTRYBUFFER_SIZE;
   context->viewsContainer.pos[0] = 2;
   context->viewsContainer.pos[1] = 4;
@@ -76,18 +75,19 @@ int main(int argc, char **argv)
   SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
 
   BoxGlyphs boxGlyphs;
-  boxGlyphs.horizontal = "═";
-  boxGlyphs.vertical = "║";
-  boxGlyphs.topLeft = "╔";
-  boxGlyphs.topRight = "╗";
-  boxGlyphs.bottomLeft = "╚";
-  boxGlyphs.bottomRight = "╝";
-  boxGlyphs.splitVerticalLeft = "╠";
-  boxGlyphs.splitVerticalRight = "╣";
-  boxGlyphs.splitHorizontalTop = "╦";
-  boxGlyphs.splitHorizontalBottom = "╩";
-  boxGlyphs.splitCross = "╬";
+  boxGlyphs.horizontal                /* = "━";*/  = "═";
+  boxGlyphs.vertical                  /* = "┃"; */ = "║";
+  boxGlyphs.topLeft                   /* = "╭"; */ = "╔";
+  boxGlyphs.topRight                  /* = "╮"; */ = "╗";
+  boxGlyphs.bottomLeft                /* = "╯"; */ = "╚";
+  boxGlyphs.bottomRight               /* = "╰"; */ = "╝";
+  boxGlyphs.splitVerticalLeft         /* = "┣"; */ = "╠";
+  boxGlyphs.splitVerticalRight        /* = "┫"; */ = "╣";
+  boxGlyphs.splitHorizontalTop        /* = "┳"; */ = "╦";
+  boxGlyphs.splitHorizontalBottom     /* = "┻"; */ = "╩";
+  boxGlyphs.splitCross                /* = "╋"; */ = "╬";
   Structures::SplitBox *box = createSplitBox(context->viewsContainer, boxGlyphs);
+  Structures::addSplit(box, DIRT_SPLIT_VERTICAL, context->viewsContainer.width/2, 0);
 
   while(!context->quit)
   {
@@ -102,6 +102,8 @@ int main(int argc, char **argv)
   // This is super slow, maybe not a point to do this, since exit.
   /* hashmapDestroy(context->selection); */
   /* hashmapDestroy(context->dirCursorIndices); */
+  uint8_t deleteCounter = 0;
+  Structures::destroySplitBox(box, deleteCounter);
   for(int i = 0; i < DIRT_N_SCREENS; i++)
   {
     free(context->screens[i]->leftView.entries);

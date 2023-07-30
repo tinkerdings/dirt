@@ -290,40 +290,41 @@ namespace Dirt
             splitBox->container.pos[1] + splitBox->container.height,
             splitBox->glyphs.bottomRight,
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+        // Top line
+        renderCardinalLineWithGlyph(
+            screen,
+            DIRT_DIRECTION_HORIZONTAL,
+            splitBox->container.pos[0] + 1,
+            splitBox->container.pos[1],
+            splitBox->container.width - 1,
+            splitBox->glyphs.horizontal);
+        // Bottom line
+        renderCardinalLineWithGlyph(
+            screen,
+            DIRT_DIRECTION_HORIZONTAL,
+            splitBox->container.pos[0] + 1,
+            splitBox->container.pos[1] + splitBox->container.height,
+            splitBox->container.width - 1,
+            splitBox->glyphs.horizontal);
+        // Left line
+        renderCardinalLineWithGlyph(
+            screen,
+            DIRT_DIRECTION_VERTICAL,
+            splitBox->container.pos[0],
+            splitBox->container.pos[1] + 1,
+            splitBox->container.height - 1,
+            splitBox->glyphs.vertical);
+        // Right line
+        renderCardinalLineWithGlyph(
+            screen,
+            DIRT_DIRECTION_VERTICAL,
+            splitBox->container.pos[0] + splitBox->container.width,
+            splitBox->container.pos[1] + 1,
+            splitBox->container.height - 1,
+            splitBox->glyphs.vertical);
       }
 
-      // Top line
-      renderCardinalLineWithGlyph(
-          screen,
-          DIRT_DIRECTION_HORIZONTAL,
-          splitBox->container.pos[0] + 1,
-          splitBox->container.pos[1],
-          splitBox->container.width - 1,
-          splitBox->glyphs.horizontal);
-      // Bottom line
-      renderCardinalLineWithGlyph(
-          screen,
-          DIRT_DIRECTION_HORIZONTAL,
-          splitBox->container.pos[0] + 1,
-          splitBox->container.pos[1] + splitBox->container.height,
-          splitBox->container.width - 1,
-          splitBox->glyphs.horizontal);
-      // Left line
-      renderCardinalLineWithGlyph(
-          screen,
-          DIRT_DIRECTION_VERTICAL,
-          splitBox->container.pos[0],
-          splitBox->container.pos[1] + 1,
-          splitBox->container.height - 1,
-          splitBox->glyphs.vertical);
-      // Right line
-      renderCardinalLineWithGlyph(
-          screen,
-          DIRT_DIRECTION_VERTICAL,
-          splitBox->container.pos[0] + splitBox->container.width,
-          splitBox->container.pos[1] + 1,
-          splitBox->container.height - 1,
-          splitBox->glyphs.vertical);
+
     }
 
     void renderCardinalLineWithGlyph(
