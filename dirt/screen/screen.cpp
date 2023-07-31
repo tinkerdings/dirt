@@ -45,7 +45,7 @@ namespace Dirt
           return false;
         }
 
-        if(!initScreenViews(context, *context->screens[i], context->viewsContainer))
+        if(!initScreenViews(context, *context->screens[i]))
         {
           for(int j = i; j >= 0; j--)
           {
@@ -117,22 +117,22 @@ namespace Dirt
     // TODO: Update this to account for splitBoxes
     void sizeScreenViews(ScreenData &screen, Container container)
     {
-      screen.leftView.renderRect.Top = container.pos[1] + 1;
-      screen.leftView.renderRect.Left = container.pos[0] + 1;
-      screen.leftView.renderRect.Bottom = screen.leftView.renderRect.Top + container.height - 2;
-      screen.leftView.renderRect.Right = screen.leftView.renderRect.Left + (container.width/2) - 2;
+      screen.leftView.renderRect.Top = container.pos[1];
+      screen.leftView.renderRect.Left = container.pos[0];
+      screen.leftView.renderRect.Bottom = screen.leftView.renderRect.Top + container.height;
+      screen.leftView.renderRect.Right = screen.leftView.renderRect.Left + (container.width/2);
       screen.leftView.width = screen.leftView.renderRect.Right - screen.leftView.renderRect.Left;
       screen.leftView.height = screen.leftView.renderRect.Bottom - screen.leftView.renderRect.Top;
 
-      screen.rightView.renderRect.Top = container.pos[1] + 1;
-      screen.rightView.renderRect.Left = screen.leftView.renderRect.Right + 2;
-      screen.rightView.renderRect.Bottom = screen.rightView.renderRect.Top + container.height - 2;
-      screen.rightView.renderRect.Right = screen.rightView.renderRect.Left + (container.width/2) - 2;
+      screen.rightView.renderRect.Top = container.pos[1];
+      screen.rightView.renderRect.Left = screen.leftView.renderRect.Right;
+      screen.rightView.renderRect.Bottom = screen.rightView.renderRect.Top + container.height;
+      screen.rightView.renderRect.Right = screen.rightView.renderRect.Left + (container.width/2);
       screen.rightView.width = screen.rightView.renderRect.Right - screen.rightView.renderRect.Left;
       screen.rightView.height = screen.rightView.renderRect.Bottom - screen.rightView.renderRect.Top;
     }
 
-    bool initScreenViews(Context *context, ScreenData &screen, Container container)
+    bool initScreenViews(Context *context, ScreenData &screen)
     {
       char currentDir[MAX_PATH] = {};
       if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
@@ -164,7 +164,7 @@ namespace Dirt
 
       strcpy(screen.rightView.path, "C:\\");
 
-      sizeScreenViews(screen, container);
+      sizeScreenViews(screen, context->viewsContainer);
 
       screen.rightView.entries = Entry::findDirectoryEntries(context, screen.rightView.path, screen.rightView.nEntries);
       if(!screen.rightView.entries)

@@ -43,7 +43,7 @@ namespace Dirt
     bool initScreens(Context *context, int nScreens);
     void sizeScreenViews(ScreenData &screen, Container container);
     void getConsoleDimensions(uint16_t &width, uint16_t &height);
-    bool initScreenViews(Context *context, ScreenData &screen, Container container);
+    bool initScreenViews(Context *context, ScreenData &screen);
     void setCurrentScreen(Context *context, int unsigned number);
     void setViewPath(Context *context, View &view, char *relPath);
     void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
