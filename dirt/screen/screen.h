@@ -41,6 +41,7 @@ namespace Dirt
     };
 
     bool initScreens(Context *context, int nScreens);
+    void sizeScreenViews(ScreenData &screen, Container container);
     void getConsoleDimensions(uint16_t &width, uint16_t &height);
     bool initScreenViews(Context *context, ScreenData &screen, Container container);
     void setCurrentScreen(Context *context, int unsigned number);

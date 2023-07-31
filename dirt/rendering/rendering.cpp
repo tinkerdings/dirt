@@ -73,24 +73,6 @@ namespace Dirt
       }
     }
 
-    // TODO: Update this to account for splitBoxes
-    void sizeScreenViews(Screen::ScreenData &screen, Container container)
-    {
-      screen.leftView.renderRect.Top = container.pos[1] + 1;
-      screen.leftView.renderRect.Left = container.pos[0] + 1;
-      screen.leftView.renderRect.Bottom = screen.leftView.renderRect.Top + container.height - 2;
-      screen.leftView.renderRect.Right = screen.leftView.renderRect.Left + (container.width/2) - 2;
-      screen.leftView.width = screen.leftView.renderRect.Right - screen.leftView.renderRect.Left;
-      screen.leftView.height = screen.leftView.renderRect.Bottom - screen.leftView.renderRect.Top;
-
-      screen.rightView.renderRect.Top = container.pos[1] + 1;
-      screen.rightView.renderRect.Left = screen.leftView.renderRect.Right + 2;
-      screen.rightView.renderRect.Bottom = screen.rightView.renderRect.Top + container.height - 2;
-      screen.rightView.renderRect.Right = screen.rightView.renderRect.Left + (container.width/2) - 2;
-      screen.rightView.width = screen.rightView.renderRect.Right - screen.rightView.renderRect.Left;
-      screen.rightView.height = screen.rightView.renderRect.Bottom - screen.rightView.renderRect.Top;
-    }
-
     void renderScreenViews(Screen::ScreenData &screen, Container container)
     {
       clearScreen(screen);
