@@ -12,7 +12,7 @@ namespace Dirt
   {
     void clearScreen(Screen::ScreenData &screen)
     {
-      CHAR_INFO leftClear[MAX_PATH] = {0};
+      CHAR_INFO leftClear[MAX_PATH] = {};
       for(int i = 0; i < screen.leftView.width; i++)
       {
         leftClear[i] = {' ', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE};
@@ -32,7 +32,7 @@ namespace Dirt
           return;
         }
       }
-      CHAR_INFO rightClear[MAX_PATH] = {0};
+      CHAR_INFO rightClear[MAX_PATH] = {};
       for(int i = 0; i < screen.rightView.width; i++)
       {
         rightClear[i] = {' ', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE};
@@ -116,7 +116,7 @@ namespace Dirt
       size_t minHeight = min(view.nEntries, view.height+view.cursorIndex.scroll);
       for(size_t i = view.cursorIndex.scroll; i < minHeight; i++)
       {
-        CHAR_INFO filename[MAX_PATH] = {0};
+        CHAR_INFO filename[MAX_PATH] = {};
         bool isDirectory = (view.entries[i].dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
         Screen::createFilenameCharInfoBuffer(filename, view.entries[i].cFileName, view.width, isDirectory);
         COORD filenameDimensions = {view.width, 1};
@@ -147,7 +147,7 @@ namespace Dirt
       coords.Y = screen.active->renderRect.Top + screen.active->cursorIndex.visualIndex;
       WORD attribs = BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
 
-      char fullPath[MAX_PATH] = {0};
+      char fullPath[MAX_PATH] = {};
       Entry::getFullPath(
           fullPath,
           screen.active->entries[screen.active->cursorIndex.actualIndex].cFileName,
@@ -200,7 +200,7 @@ namespace Dirt
             &nSet);
         }
 
-        char fullPath[MAX_PATH] = {0};
+        char fullPath[MAX_PATH] = {};
         Entry::getFullPath(fullPath, entry.cFileName, MAX_PATH);
 
         if(hashmapContains(context->selection, fullPath, context->selection->dataSize, 0, 0))
@@ -230,7 +230,7 @@ namespace Dirt
 
     CHAR_INFO createGlyphWithAttributes(char *utf8, WORD attributes)
     {
-      WCHAR utf16[32] = {0};
+      WCHAR utf16[32] = {};
       int len = utf8ToUtf16(utf8, utf16, 32);
       CHAR_INFO glyph = {*utf16, attributes};
       return glyph;
@@ -238,7 +238,7 @@ namespace Dirt
 
     void renderUnicodeCharacter(Screen::ScreenData &screen, SHORT x, SHORT y, char *character, WORD attributes)
     {
-      WCHAR utf16Char[32] = {0};
+      WCHAR utf16Char[32] = {};
       int len = utf8ToUtf16(character, utf16Char, 32);
 
       DWORD nWritten = 0;
@@ -324,7 +324,85 @@ namespace Dirt
             splitBox->glyphs.vertical);
       }
 
+      if(splitBox->splitType != DIRT_SPLIT_NONE)
+      {
+        switch(splitBox->splitType)
+        {
+          case(DIRT_SPLIT_HORIZONTAL):
+          {
+            renderUnicodeCharacter(
+                screen,
+                splitBox->container.pos[0],
+                splitBox->childB->container.pos[1],
+                splitBox->glyphs.splitHorizontalLeft,
+                FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+            renderUnicodeCharacter(
+                screen,
+                splitBox->container.pos[0] + splitBox->container.width,
+                splitBox->childB->container.pos[1],
+                splitBox->glyphs.splitHorizontalRight,
+                FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 
+            renderCardinalLineWithGlyph(
+                screen,
+                DIRT_DIRECTION_HORIZONTAL,
+                splitBox->container.pos[0] + 1,
+                splitBox->childB->container.pos[1],
+                splitBox->container.width - 1,
+                splitBox->glyphs.horizontal);
+          } break;
+          case(DIRT_SPLIT_VERTICAL):
+          {
+            renderUnicodeCharacter(
+                screen,
+                splitBox->childB->container.pos[0],
+                splitBox->container.pos[1],
+                splitBox->glyphs.splitVerticalTop,
+                FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+            renderUnicodeCharacter(
+                screen,
+                splitBox->childB->container.pos[0],
+                splitBox->container.pos[1] + splitBox->container.height,
+                splitBox->glyphs.splitVerticalBottom,
+                FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+
+            renderCardinalLineWithGlyph(
+                screen,
+                DIRT_DIRECTION_VERTICAL,
+                splitBox->childB->container.pos[0],
+                splitBox->container.pos[1] + 1,
+                splitBox->container.height - 1,
+                splitBox->glyphs.vertical);
+          } break;
+        }
+
+        if(splitBox->parent)
+        {
+          SplitBox *childA = splitBox->parent->childA;
+          SplitBox *childB = splitBox->parent->childB;
+          if(childA->splitType == childB->splitType)
+          {
+            uint8_t coord = 0;
+            if(childA->splitType == DIRT_SPLIT_HORIZONTAL)
+            {
+              coord++;
+            }
+
+            if(childA->childB->container.pos[coord] == childB->childB->container.pos[coord])
+            {
+              renderUnicodeCharacter(
+                  screen,
+                  childB->childB->container.pos[0],
+                  childB->childB->container.pos[1],
+                  splitBox->glyphs.splitCross,
+                  FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+            }
+          }
+        }
+
+        renderSplitBox(screen, splitBox->childA);
+        renderSplitBox(screen, splitBox->childB);
+      }
     }
 
     void renderCardinalLineWithGlyph(
@@ -335,7 +413,7 @@ namespace Dirt
         SHORT signedLength, // Signed length along specified axis, by direction parameter
         char *character)
     {
-      CHAR_INFO buffer[2048] = {0};
+      CHAR_INFO buffer[2048] = {};
 
       int len = signedLength;
       if(signedLength < 0)

@@ -17,7 +17,7 @@ namespace Dirt
   {
     bool getFullPath(char *out, char* relPath, size_t outLen)
     {
-      char fullPath[MAX_PATH] = {0};
+      char fullPath[MAX_PATH] = {};
       GetFullPathNameA(relPath, MAX_PATH, fullPath, 0);
       if(strlen(fullPath) > outLen)
       {
@@ -40,7 +40,7 @@ namespace Dirt
       }
       HANDLE entry = INVALID_HANDLE_VALUE;
       WIN32_FIND_DATA *entries = (WIN32_FIND_DATA *)malloc(context->entryBufferNSlots * sizeof(WIN32_FIND_DATA));
-      char fullPath[MAX_PATH] = {0};
+      char fullPath[MAX_PATH] = {};
       GetFullPathName(dirPath, MAX_PATH, fullPath, 0);
       strcat(fullPath, "\\*");
 
@@ -230,7 +230,7 @@ namespace Dirt
       }
 
       printf("\nSelected:\n");
-      char prefix[3] = {0};
+      char prefix[3] = {};
       for(int i = 0; i < nSelected; i++)
       {
         printf("%s%s", prefix, selection[i]);
@@ -247,7 +247,7 @@ namespace Dirt
       int nSelected = 0;
       char **selection = getSelection(context, nSelected);
 
-      char currentDir[MAX_PATH] = {0};
+      char currentDir[MAX_PATH] = {};
       if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
       {
         printf("GetCurrentDirectory failed (%lu)\n", GetLastError());
@@ -264,7 +264,7 @@ namespace Dirt
         }
 
         char *filename = PathFindFileNameA(selection[i]);
-        char destination[MAX_PATH] = {0};
+        char destination[MAX_PATH] = {};
         strcpy(destination, currentDir);
         strcat(destination, "\\");
         strcat(destination, filename);
@@ -286,7 +286,7 @@ namespace Dirt
       int nSelected = 0;
       char **selection = getSelection(context, nSelected);
 
-      char currentDir[MAX_PATH] = {0};
+      char currentDir[MAX_PATH] = {};
       if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
       {
         printf("GetCurrentDirectory failed (%lu)\n", GetLastError());

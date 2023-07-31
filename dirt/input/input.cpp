@@ -15,7 +15,7 @@ namespace Dirt
   {
     void handleInput(Dirt::Context *context, ScreenData &screen, HANDLE stdinHandle)
     {
-      INPUT_RECORD inputBuffer[INPUTBUF_SIZE] = {0};
+      INPUT_RECORD inputBuffer[INPUTBUF_SIZE] = {};
       DWORD nRecordsRead = 0;
       if(!ReadConsoleInput(
         stdinHandle, inputBuffer, 3, &nRecordsRead))
@@ -79,7 +79,7 @@ namespace Dirt
               } break;
               case(VK_RETURN):
               {
-                char fullPath[MAX_PATH] = {0};
+                char fullPath[MAX_PATH] = {};
                 if(!Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
                 {
                   printf("fullPath failed (%lu)\n", GetLastError());
@@ -145,7 +145,7 @@ namespace Dirt
               } break;
               case(VK_X):
               {
-                char fullPath[MAX_PATH] = {0};
+                char fullPath[MAX_PATH] = {};
                 if(!Entry::getFullPath(fullPath, screen.active->path, MAX_PATH))
                 {
                   printf("fullPath failed (%lu)\n", GetLastError());
@@ -159,7 +159,7 @@ namespace Dirt
               } break;
               case(VK_E):
               {
-                char fullPath[MAX_PATH] = {0};
+                char fullPath[MAX_PATH] = {};
                 if(!Entry::getFullPath(fullPath, screen.active->path, MAX_PATH))
                 {
                   printf("fullPath failed (%lu)\n", GetLastError());
@@ -172,9 +172,9 @@ namespace Dirt
                   STARTF_USESHOWWINDOW, SW_SHOW,
                   0, 0, 0, 0, 0
                 };
-                char explorerPath[MAX_PATH] = {0};
+                char explorerPath[MAX_PATH] = {};
                 FindExecutableA("explorer.exe", 0, explorerPath);
-                char arg[MAX_PATH] = {0};
+                char arg[MAX_PATH] = {};
                 strcat(arg, " /e,/root,");
                 strcat(arg, fullPath);
                 CreateProcessA(explorerPath,
@@ -204,7 +204,7 @@ namespace Dirt
                 /* } */
                 if(inputNoKeyRepeat(context, inputBuffer, inputRecIndex, INPUTBUF_SIZE))
                 {
-                  char fullPath[MAX_PATH] = {0};
+                  char fullPath[MAX_PATH] = {};
                   if(!Entry::getFullPath(fullPath, activeEntry.cFileName, MAX_PATH))
                   {
                     printf("getFullPath failed (%lu)\n", GetLastError());

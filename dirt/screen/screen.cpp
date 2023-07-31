@@ -5,6 +5,7 @@
 #include <dirt/screen/screen.h>
 #include <dirt/predefinedValues.h>
 #include <dirt/rendering/rendering.h>
+#include <processenv.h>
 #include <stdio.h>
 
 namespace Dirt
@@ -115,7 +116,7 @@ namespace Dirt
 
     bool initScreenViews(Context *context, ScreenData &screen, Container container)
     {
-      char currentDir[MAX_PATH] = {0};
+      char currentDir[MAX_PATH] = {};
       if(!GetCurrentDirectoryA(MAX_PATH, currentDir))
       {
         printf("initScreenViews:GetCurrentDirectory failed (%lu)\n", GetLastError());
@@ -161,6 +162,14 @@ namespace Dirt
       return true;
     }
 
+    void getConsoleDimensions(uint16_t &width, uint16_t &height)
+    {
+      CONSOLE_SCREEN_BUFFER_INFO bufferInfo;
+      GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &bufferInfo);
+      width = (bufferInfo.srWindow.Right - bufferInfo.srWindow.Left) + 1;
+      height = (bufferInfo.srWindow.Bottom - bufferInfo.srWindow.Top) + 1;
+    }
+
     void setViewPath(Context *context, View &view, char *relPath)
     {
       if(!SetCurrentDirectory(view.path))
@@ -168,7 +177,7 @@ namespace Dirt
         printf("Failed to set current directory (%lu)\n", GetLastError());
       }
 
-      char fullPath[MAX_PATH] = {0};
+      char fullPath[MAX_PATH] = {};
       Entry::getFullPath(fullPath, relPath, MAX_PATH);
 
       if(!SetCurrentDirectory(fullPath))

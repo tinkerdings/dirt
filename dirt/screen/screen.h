@@ -14,11 +14,11 @@ namespace Dirt
   {
     struct View
     {
-      SMALL_RECT renderRect = {0};
+      SMALL_RECT renderRect = {};
       SHORT width = 0;
       SHORT height = 0;
       size_t nEntries = 0;
-      char path[MAX_PATH] = {0};
+      char path[MAX_PATH] = {};
       WIN32_FIND_DATA *entries = 0;
       struct CursorIndex
       {
@@ -29,7 +29,7 @@ namespace Dirt
       struct CursorMapEntry
       {
         CursorIndex cursorIndex;
-        char path[MAX_PATH] = {0};
+        char path[MAX_PATH] = {};
       };
       Hashmap *cursorMap;
     };
@@ -41,6 +41,7 @@ namespace Dirt
     };
 
     bool initScreens(Context *context, int nScreens);
+    void getConsoleDimensions(uint16_t &width, uint16_t &height);
     bool initScreenViews(Context *context, ScreenData &screen, Container container);
     void setCurrentScreen(Context *context, int unsigned number);
     void setViewPath(Context *context, View &view, char *relPath);

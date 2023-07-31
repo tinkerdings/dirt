@@ -4,9 +4,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <wingdi.h>
-#include <winnt.h>
-#include <winuser.h>
 
 #include <dirt/context/context.h>
 #include <dirt/structures/hashmap.h>
@@ -24,18 +21,11 @@ int main(int argc, char **argv)
 {
   CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 
-  Context *context = (Context *)calloc(1, sizeof(Context));
+  Context *context = createContext();
   if(!context)
   {
-    printf("Failed to alloc context\n");
     return 1;
   }
-
-  context->entryBufferNSlots = DIRT_ENTRYBUFFER_SIZE;
-  context->viewsContainer.pos[0] = 2;
-  context->viewsContainer.pos[1] = 4;
-  context->viewsContainer.width = 100;
-  context->viewsContainer.height = 40;
 
   if(!initScreens(context, DIRT_N_SCREENS))
   {
@@ -74,26 +64,11 @@ int main(int argc, char **argv)
 
   SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
 
-  BoxGlyphs boxGlyphs;
-  boxGlyphs.horizontal                /* = "━";*/  = "═";
-  boxGlyphs.vertical                  /* = "┃"; */ = "║";
-  boxGlyphs.topLeft                   /* = "╭"; */ = "╔";
-  boxGlyphs.topRight                  /* = "╮"; */ = "╗";
-  boxGlyphs.bottomLeft                /* = "╯"; */ = "╚";
-  boxGlyphs.bottomRight               /* = "╰"; */ = "╝";
-  boxGlyphs.splitVerticalLeft         /* = "┣"; */ = "╠";
-  boxGlyphs.splitVerticalRight        /* = "┫"; */ = "╣";
-  boxGlyphs.splitHorizontalTop        /* = "┳"; */ = "╦";
-  boxGlyphs.splitHorizontalBottom     /* = "┻"; */ = "╩";
-  boxGlyphs.splitCross                /* = "╋"; */ = "╬";
-  Structures::SplitBox *box = createSplitBox(context->viewsContainer, boxGlyphs);
-  Structures::addSplit(box, DIRT_SPLIT_VERTICAL, context->viewsContainer.width/2, 0);
-
   while(!context->quit)
   {
     Rendering::renderScreenViews(*context->currentScreen, context->viewsContainer);
     Rendering::styleScreenViews(context, *(context->currentScreen));
-    Rendering::renderSplitBox(*context->currentScreen, box);
+    Rendering::renderSplitBox(*context->currentScreen, context->viewBox);
     Rendering::highlightLine(context, *(context->currentScreen));
     Rendering::swapScreenBuffers(*(context->currentScreen));
     Input::handleInput(context, *(context->currentScreen), stdinHandle);
@@ -103,7 +78,7 @@ int main(int argc, char **argv)
   /* hashmapDestroy(context->selection); */
   /* hashmapDestroy(context->dirCursorIndices); */
   uint8_t deleteCounter = 0;
-  Structures::destroySplitBox(box, deleteCounter);
+  Structures::destroySplitBox(context->viewBox, deleteCounter);
   for(int i = 0; i < DIRT_N_SCREENS; i++)
   {
     free(context->screens[i]->leftView.entries);

@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <dirt/structures/container.h>
 
+#define DIRT_SPLIT_NONE 0
 #define DIRT_SPLIT_HORIZONTAL 1
 #define DIRT_SPLIT_VERTICAL 2
 
@@ -20,32 +21,32 @@ namespace Dirt
       char *topRight;
       char *bottomLeft;
       char *bottomRight;
-      char *splitHorizontalTop;
-      char *splitHorizontalBottom;
-      char *splitVerticalLeft;
-      char *splitVerticalRight;
+      char *splitHorizontalLeft;
+      char *splitHorizontalRight;
+      char *splitVerticalTop;
+      char *splitVerticalBottom;
       char *splitCross;
     };
 
     struct SplitBox
     {
-      Container container = {0};
+      Container container = {};
 
       uint8_t nSplits = 0;
 
-      BoxGlyphs glyphs = {0};
+      BoxGlyphs glyphs = {};
+
+      uint8_t splitType = DIRT_SPLIT_NONE;
 
       SplitBox *parent = 0;
-      SplitBox *left = 0;
-      SplitBox *right = 0;
-      SplitBox *top = 0;
-      SplitBox *bottom = 0;
+      SplitBox *childA = 0; // Top or Left
+      SplitBox *childB = 0; // Bottom or Right
     };
 
     SplitBox *createSplitBox(Structures::Container container, BoxGlyphs glyphs);
     void destroySplitBox(SplitBox *splitBox, uint8_t &splitDeleteCounter);
     void incrementSplitCounter(SplitBox *splitBox);
-    void addSplit(SplitBox *splitBox, uint8_t splitType, uint16_t offsetAlongOrthogonalAxis, BoxGlyphs *newGlyphs);
+    void addSplit(SplitBox *splitBox, uint8_t splitType, int32_t signedOffsetAlongOrthogonalAxis, BoxGlyphs *newGlyphs);
   }
 }
 

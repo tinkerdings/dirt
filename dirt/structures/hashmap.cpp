@@ -335,25 +335,5 @@ namespace Dirt
 
       return false;
     }
-
-    /* // Extra */
-    /* bool hashmapAddPathString(Hashmap *map, char *path) */
-    /* { */
-    /*   char entryFullPath[MAX_PATH] = {0}; */
-    /*   if(!getFullPath(entryFullPath, path, MAX_PATH)) */
-    /*   { */
-    /*     Dirt::Error::errorCode = DIRT_ERROR_GETFULLPATH; */
-    /*     return false; */
-    /*   } */
-
-    /*   DWORD entryAttributes = GetFileAttributesA(entryFullPath); */
-    /*   if(entryAttributes == INVALID_FILE_ATTRIBUTES && GetLastError() != ERROR_SHARING_VIOLATION) */
-    /*   { */
-    /*     Dirt::Error::errorCode = DIRT_ERROR_INVALID_ENTRY; */
-    /*     return false; */
-    /*   } */
-
-    /*   hashmapAdd(map, entryFullPath, strlen(entryFullPath)); */
-    /* } */
   }
 }
