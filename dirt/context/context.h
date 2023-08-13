@@ -25,13 +25,12 @@ namespace Dirt
   {
     Screen::ScreenData **screens;
     Screen::ScreenData *currentScreen = 0;
-    Structures::Container viewsContainer = {};
     HANDLE backBuffer = 0;
     HANDLE frontBuffer = 0;
     bool quit;
     size_t entryBufferNSlots;
     Structures::Hashmap *selection;
-    Structures::SplitBox *viewBox;
+    Structures::SplitBox *viewsSplitBox;
     Structures::SplitBox tabFrames[9] = {};
     Structures::BoxGlyphs standardGlyphs = {};
     struct InputData

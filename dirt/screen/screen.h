@@ -37,7 +37,7 @@ namespace Dirt
     struct ScreenData
     {
       HANDLE backBuffer, frontBuffer;
-      View leftView, rightView, *active;
+      View leftView, rightView, *activeView;
     };
 
     bool initScreens(Context *context, int nScreens);

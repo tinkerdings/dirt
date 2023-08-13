@@ -98,8 +98,8 @@ namespace Dirt
 
     bool setActiveView(ScreenData &screen, View &view)
     {
-      screen.active = &view;
-      if(!SetCurrentDirectory(screen.active->path))
+      screen.activeView = &view;
+      if(!SetCurrentDirectory(screen.activeView->path))
       {
         printf("Failed to set current directory (%lu)\n", GetLastError());
         return false;
@@ -114,22 +114,21 @@ namespace Dirt
       setViewPath(context, context->currentScreen->rightView, context->currentScreen->rightView.path);
     }
 
-    // TODO: Update this to account for splitBoxes
-    void sizeScreenViews(ScreenData &screen, Container container)
+    void sizeScreenView(View &view, Container container)
     {
-      screen.leftView.renderRect.Top = container.pos[1];
-      screen.leftView.renderRect.Left = container.pos[0];
-      screen.leftView.renderRect.Bottom = screen.leftView.renderRect.Top + container.height;
-      screen.leftView.renderRect.Right = screen.leftView.renderRect.Left + (container.width/2);
-      screen.leftView.width = screen.leftView.renderRect.Right - screen.leftView.renderRect.Left;
-      screen.leftView.height = screen.leftView.renderRect.Bottom - screen.leftView.renderRect.Top;
+      view.renderRect.Top = container.pos[1];
+      view.renderRect.Left = container.pos[0];
+      view.renderRect.Bottom = container.pos[1] + container.height - 1;
+      view.renderRect.Right = container.pos[0] + container.width - 1;
+      view.width = container.width;
+      view.height = container.height;
+    }
 
-      screen.rightView.renderRect.Top = container.pos[1];
-      screen.rightView.renderRect.Left = screen.leftView.renderRect.Right;
-      screen.rightView.renderRect.Bottom = screen.rightView.renderRect.Top + container.height;
-      screen.rightView.renderRect.Right = screen.rightView.renderRect.Left + (container.width/2);
-      screen.rightView.width = screen.rightView.renderRect.Right - screen.rightView.renderRect.Left;
-      screen.rightView.height = screen.rightView.renderRect.Bottom - screen.rightView.renderRect.Top;
+    // TODO: Update this to account for splitBoxes
+    void sizeScreenViews(Context *context, ScreenData &screen)
+    {
+      sizeScreenView(screen.leftView, context->viewsSplitBox->childA->contentContainer);
+      sizeScreenView(screen.rightView, context->viewsSplitBox->childB->contentContainer);
     }
 
     bool initScreenViews(Context *context, ScreenData &screen)
@@ -164,7 +163,7 @@ namespace Dirt
 
       strcpy(screen.rightView.path, "C:\\");
 
-      sizeScreenViews(screen, context->viewsContainer);
+      sizeScreenViews(context, screen);
 
       screen.rightView.entries = Entry::findDirectoryEntries(context, screen.rightView.path, screen.rightView.nEntries);
       if(!screen.rightView.entries)
@@ -288,38 +287,38 @@ namespace Dirt
 
     void incrementScreenCursorIndex(Context *context, ScreenData &screen)
     {
-      View::CursorIndex currentIndex = screen.active->cursorIndex;
-      if(currentIndex.actualIndex < (screen.active->nEntries-1))
+      View::CursorIndex currentIndex = screen.activeView->cursorIndex;
+      if(currentIndex.actualIndex < (screen.activeView->nEntries-1))
       {
-        screen.active->cursorIndex.actualIndex++;
-        if(currentIndex.visualIndex == screen.active->height-1)
+        screen.activeView->cursorIndex.actualIndex++;
+        if(currentIndex.visualIndex == screen.activeView->height-1)
         {
-          screen.active->cursorIndex.scroll++;
-          Rendering::renderScreenViews(screen, context->viewsContainer);
+          screen.activeView->cursorIndex.scroll++;
+          Rendering::renderScreenViews(screen);
         }
       }
-      size_t minHeight = min(screen.active->height-1, screen.active->nEntries-1);
+      size_t minHeight = min(screen.activeView->height-1, screen.activeView->nEntries-1);
       if(currentIndex.visualIndex < minHeight)
       {
-        screen.active->cursorIndex.visualIndex++;
+        screen.activeView->cursorIndex.visualIndex++;
       }
     }
 
     void decrementScreenCursorIndex(Context *context, ScreenData &screen)
     {
-      View::CursorIndex currentIndex = screen.active->cursorIndex;
+      View::CursorIndex currentIndex = screen.activeView->cursorIndex;
       if(currentIndex.actualIndex > 0)
       {
-        screen.active->cursorIndex.actualIndex--;
+        screen.activeView->cursorIndex.actualIndex--;
         if(currentIndex.visualIndex == 0)
         {
-          screen.active->cursorIndex.scroll--;
-          Rendering::renderScreenViews(screen, context->viewsContainer);
+          screen.activeView->cursorIndex.scroll--;
+          Rendering::renderScreenViews(screen);
         }
       }
       if(currentIndex.visualIndex > 0)
       {
-        screen.active->cursorIndex.visualIndex--;
+        screen.activeView->cursorIndex.visualIndex--;
       }
     }
   } // namespace Screen

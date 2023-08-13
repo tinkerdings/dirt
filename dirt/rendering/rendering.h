@@ -14,9 +14,8 @@ namespace Dirt
   namespace Rendering
   {
     void renderSplitBox(Screen::ScreenData &screen, Structures::SplitBox *splitBox);
-    void renderScreenViews(Screen::ScreenData &screen, Container container);
+    void renderScreenViews(Screen::ScreenData &screen);
     void renderTabsContainer(Context *context, Container *container);
-    void renderContainerBorder(Screen::ScreenData &screen, Container container);
     void renderCardinalLineWithGlyph(
         Screen::ScreenData &screen,
         uint8_t direction, // DIRT_DIRECTION_HORIZONTAL or DIRT_DIRECTION_VERTICAL
@@ -31,7 +30,7 @@ namespace Dirt
     void styleView(Context *context, Screen::ScreenData &screen, Screen::View view);
     void clearScreen(Screen::ScreenData &screen);
     void styleScreenViews(Context *context, Screen::ScreenData &screen);
-    void highlightLine(Context *context, Screen::ScreenData &screen);
+    void renderCursorLine(Context *context, Screen::ScreenData &screen);
     void swapScreenBuffers(Screen::ScreenData &screen);
     void refresh(Context *context, Screen::ScreenData &screen);
   }

@@ -66,10 +66,9 @@ int main(int argc, char **argv)
 
   while(!context->quit)
   {
-    Rendering::renderScreenViews(*context->currentScreen, context->viewsContainer);
+    Rendering::renderScreenViews(*context->currentScreen);
     Rendering::styleScreenViews(context, *(context->currentScreen));
-    Rendering::renderSplitBox(*context->currentScreen, context->viewBox);
-    Rendering::highlightLine(context, *(context->currentScreen));
+    Rendering::renderSplitBox(*context->currentScreen, context->viewsSplitBox);
     Rendering::swapScreenBuffers(*(context->currentScreen));
     Input::handleInput(context, *(context->currentScreen), stdinHandle);
   }
@@ -78,7 +77,7 @@ int main(int argc, char **argv)
   /* hashmapDestroy(context->selection); */
   /* hashmapDestroy(context->dirCursorIndices); */
   uint8_t deleteCounter = 0;
-  Structures::destroySplitBox(context->viewBox, deleteCounter);
+  Structures::destroySplitBox(context->viewsSplitBox, deleteCounter);
   for(int i = 0; i < DIRT_N_SCREENS; i++)
   {
     free(context->screens[i]->leftView.entries);

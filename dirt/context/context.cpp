@@ -24,25 +24,21 @@ namespace Dirt
     context->standardGlyphs.splitHorizontalRight     /* = "┻"; */ = "╣";
     context->standardGlyphs.splitCross                /* = "╋"; */ = "╬";
 
-    Structures::Container viewBoxContainer = {};
-    viewBoxContainer.pos[0] = 1;
-    viewBoxContainer.pos[1] = 5;
+    Structures::Container viewsSplitBoxFrameContainer = {};
+    viewsSplitBoxFrameContainer.pos[0] = 1;
+    viewsSplitBoxFrameContainer.pos[1] = 5;
     uint16_t consoleWidth = 0;
     uint16_t consoleHeight = 0;
     Screen::getConsoleDimensions(consoleWidth, consoleHeight);
-    viewBoxContainer.width = consoleWidth - (viewBoxContainer.pos[0]+2);
-    viewBoxContainer.height = consoleHeight - (viewBoxContainer.pos[1]+2);
+    viewsSplitBoxFrameContainer.width = consoleWidth - (viewsSplitBoxFrameContainer.pos[0]+2);
+    viewsSplitBoxFrameContainer.height = consoleHeight - (viewsSplitBoxFrameContainer.pos[1]+2);
 
-    context->viewBox = Structures::createSplitBox(viewBoxContainer, context->standardGlyphs);
-    addSplit(context->viewBox, DIRT_SPLIT_VERTICAL, viewBoxContainer.width/2, 0);
-    addSplit(context->viewBox->childA, DIRT_SPLIT_HORIZONTAL, -2, 0);
-    addSplit(context->viewBox->childB, DIRT_SPLIT_HORIZONTAL, -2, 0);
+    context->viewsSplitBox = Structures::createSplitBox(viewsSplitBoxFrameContainer, context->standardGlyphs);
+    addSplit(context->viewsSplitBox, DIRT_SPLIT_VERTICAL, viewsSplitBoxFrameContainer.width/2, 0);
+    addSplit(context->viewsSplitBox->childA, DIRT_SPLIT_HORIZONTAL, -2, 0);
+    addSplit(context->viewsSplitBox->childB, DIRT_SPLIT_HORIZONTAL, -2, 0);
 
     context->entryBufferNSlots = DIRT_ENTRYBUFFER_SIZE;
-    context->viewsContainer.pos[0] = viewBoxContainer.pos[0]+1;
-    context->viewsContainer.pos[1] = viewBoxContainer.pos[1]+1;
-    context->viewsContainer.width = viewBoxContainer.width - 2;
-    context->viewsContainer.height = viewBoxContainer.height - 2;
 
     return context;
   }

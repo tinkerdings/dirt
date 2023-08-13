@@ -26,7 +26,7 @@ namespace Dirt
 
       for(int inputRecIndex = 0; inputRecIndex < nRecordsRead; inputRecIndex++)
       {
-        WIN32_FIND_DATA &activeEntry = screen.active->entries[screen.active->cursorIndex.actualIndex];
+        WIN32_FIND_DATA &activeEntry = screen.activeView->entries[screen.activeView->cursorIndex.actualIndex];
         switch(inputBuffer[inputRecIndex].EventType)
         {
           case(KEY_EVENT):
@@ -56,15 +56,15 @@ namespace Dirt
               } break;
               case(VK_TAB):
               {
-                if(screen.active == &screen.leftView)
+                if(screen.activeView == &screen.leftView)
                 {
-                  screen.active = &screen.rightView;
+                  screen.activeView = &screen.rightView;
                 }
                 else 
                 {
-                  screen.active = &screen.leftView;
+                  screen.activeView = &screen.leftView;
                 }
-                if(!SetCurrentDirectory(screen.active->path))
+                if(!SetCurrentDirectory(screen.activeView->path))
                 {
                   printf("Failed to set current directory (%lu)\n", GetLastError());
                 }
@@ -74,7 +74,7 @@ namespace Dirt
               {
                 if(activeEntry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
                 {
-                  setViewPath(context, *screen.active, activeEntry.cFileName);
+                  setViewPath(context, *screen.activeView, activeEntry.cFileName);
                 }
               } break;
               case(VK_RETURN):
@@ -146,7 +146,7 @@ namespace Dirt
               case(VK_X):
               {
                 char fullPath[MAX_PATH] = {};
-                if(!Entry::getFullPath(fullPath, screen.active->path, MAX_PATH))
+                if(!Entry::getFullPath(fullPath, screen.activeView->path, MAX_PATH))
                 {
                   printf("fullPath failed (%lu)\n", GetLastError());
                   break;
@@ -160,7 +160,7 @@ namespace Dirt
               case(VK_E):
               {
                 char fullPath[MAX_PATH] = {};
-                if(!Entry::getFullPath(fullPath, screen.active->path, MAX_PATH))
+                if(!Entry::getFullPath(fullPath, screen.activeView->path, MAX_PATH))
                 {
                   printf("fullPath failed (%lu)\n", GetLastError());
                   break;
@@ -188,9 +188,9 @@ namespace Dirt
               case(VK_LEFT):
               case(VK_H):
               {
-                /* if(!isRootDir(screen.active.path)) */ // TODO Implement this
+                /* if(!isRootDir(screen.activeView.path)) */ // TODO Implement this
                 /* { */
-                setViewPath(context, *screen.active, "..");
+                setViewPath(context, *screen.activeView, "..");
                 /* } */
               } break;
               case(VK_ESCAPE):

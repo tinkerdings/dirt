@@ -30,7 +30,8 @@ namespace Dirt
 
     struct SplitBox
     {
-      Container container = {};
+      Container frameContainer = {};
+      Container contentContainer = {};
 
       uint8_t nSplits = 0;
 
@@ -43,7 +44,7 @@ namespace Dirt
       SplitBox *childB = 0; // Bottom or Right
     };
 
-    SplitBox *createSplitBox(Structures::Container container, BoxGlyphs glyphs);
+    SplitBox *createSplitBox(Structures::Container frameContainer, BoxGlyphs glyphs);
     void destroySplitBox(SplitBox *splitBox, uint8_t &splitDeleteCounter);
     void incrementSplitCounter(SplitBox *splitBox);
     void addSplit(SplitBox *splitBox, uint8_t splitType, int32_t signedOffsetAlongOrthogonalAxis, BoxGlyphs *newGlyphs);

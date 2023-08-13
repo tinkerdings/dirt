@@ -5,7 +5,7 @@ namespace Dirt
 {
   namespace Structures
   {
-    SplitBox *createSplitBox(Structures::Container container, BoxGlyphs glyphs)
+    SplitBox *createSplitBox(Structures::Container frameContainer, BoxGlyphs glyphs)
     {
       SplitBox *splitBox = 0;
       if(!(splitBox = (SplitBox *)calloc(1, sizeof(SplitBox))))
@@ -13,7 +13,14 @@ namespace Dirt
         return 0;
       }
       splitBox->glyphs = glyphs;
-      splitBox->container = container;
+      splitBox->frameContainer = frameContainer;
+
+      Structures::Container contentContainer = {};
+      contentContainer.pos[0] = frameContainer.pos[0] + 1;
+      contentContainer.pos[1] = frameContainer.pos[1] + 1;
+      contentContainer.width = frameContainer.width - 2;
+      contentContainer.height = frameContainer.height - 2;
+      splitBox->contentContainer = contentContainer;
 
       return splitBox;
     }
@@ -71,56 +78,57 @@ namespace Dirt
       {
         case(DIRT_SPLIT_HORIZONTAL):
         {
-          Structures::Container childContainerA;
-          childContainerA.pos[0] = splitBox->container.pos[0];
-          childContainerA.pos[1] = splitBox->container.pos[1];
-          childContainerA.width = splitBox->container.width;
+          Structures::Container childFrameContainerA;
+          childFrameContainerA.pos[0] = splitBox->frameContainer.pos[0];
+          childFrameContainerA.pos[1] = splitBox->frameContainer.pos[1];
+          childFrameContainerA.width = splitBox->frameContainer.width;
           if(signedOffsetAlongOrthogonalAxis < 0)
           {
-            childContainerA.height = splitBox->container.height + signedOffsetAlongOrthogonalAxis;
+            // TODO: This height value does not seem right
+            childFrameContainerA.height = splitBox->frameContainer.height + signedOffsetAlongOrthogonalAxis;
           }
           else 
           {
-            childContainerA.height = signedOffsetAlongOrthogonalAxis;
+            childFrameContainerA.height = signedOffsetAlongOrthogonalAxis;
           }
 
-          Structures::Container childContainerB;
-          childContainerB.pos[0] = splitBox->container.pos[0];
-          childContainerB.pos[1] = splitBox->container.pos[1] + childContainerA.height;
-          childContainerB.width = splitBox->container.width;
-          childContainerB.height = splitBox->container.height - childContainerA.height;
+          Structures::Container childFrameContainerB;
+          childFrameContainerB.pos[0] = splitBox->frameContainer.pos[0];
+          childFrameContainerB.pos[1] = splitBox->frameContainer.pos[1] + childFrameContainerA.height;
+          childFrameContainerB.width = splitBox->frameContainer.width;
+          childFrameContainerB.height = splitBox->frameContainer.height - childFrameContainerA.height;
 
-          splitBox->childA = createSplitBox(childContainerA, childGlyphs);
+          splitBox->childA = createSplitBox(childFrameContainerA, childGlyphs);
           splitBox->childA->parent = splitBox;
 
-          splitBox->childB = createSplitBox(childContainerB, childGlyphs);
+          splitBox->childB = createSplitBox(childFrameContainerB, childGlyphs);
           splitBox->childB->parent = splitBox;
         } break;
 
         case(DIRT_SPLIT_VERTICAL):
         {
-          Structures::Container childContainerA;
-          childContainerA.pos[0] = splitBox->container.pos[0];
-          childContainerA.pos[1] = splitBox->container.pos[1];
+          Structures::Container childFrameContainerA;
+          childFrameContainerA.pos[0] = splitBox->frameContainer.pos[0];
+          childFrameContainerA.pos[1] = splitBox->frameContainer.pos[1];
           if(signedOffsetAlongOrthogonalAxis < 0)
           {
-            childContainerA.width = splitBox->container.width + signedOffsetAlongOrthogonalAxis;
+            childFrameContainerA.width = splitBox->frameContainer.width + signedOffsetAlongOrthogonalAxis;
           }
           else
           {
-            childContainerA.width = signedOffsetAlongOrthogonalAxis;
+            childFrameContainerA.width = signedOffsetAlongOrthogonalAxis;
           }
-          childContainerA.height = splitBox->container.height;
+          childFrameContainerA.height = splitBox->frameContainer.height;
 
-          Structures::Container childContainerB;
-          childContainerB.pos[0] = splitBox->container.pos[0] + childContainerA.width;
-          childContainerB.pos[1] = splitBox->container.pos[1];
-          childContainerB.width = splitBox->container.width - childContainerA.width;
-          childContainerB.height = splitBox->container.height;
+          Structures::Container childFrameContainerB;
+          childFrameContainerB.pos[0] = splitBox->frameContainer.pos[0] + childFrameContainerA.width;
+          childFrameContainerB.pos[1] = splitBox->frameContainer.pos[1];
+          childFrameContainerB.width = splitBox->frameContainer.width - childFrameContainerA.width;
+          childFrameContainerB.height = splitBox->frameContainer.height;
 
-          splitBox->childA = createSplitBox(childContainerA, childGlyphs);
+          splitBox->childA = createSplitBox(childFrameContainerA, childGlyphs);
           splitBox->childA->parent = splitBox;
-          splitBox->childB = createSplitBox(childContainerB, childGlyphs);
+          splitBox->childB = createSplitBox(childFrameContainerB, childGlyphs);
           splitBox->childB->parent = splitBox;
         } break;
       }

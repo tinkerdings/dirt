@@ -58,7 +58,7 @@ namespace Dirt
     {
       styleView(context, screen, screen.leftView);
       styleView(context, screen, screen.rightView);
-      highlightLine(context, *(context->currentScreen));
+      renderCursorLine(context, *(context->currentScreen));
     }
 
     void swapScreenBuffers(Screen::ScreenData &screen)
@@ -73,12 +73,11 @@ namespace Dirt
       }
     }
 
-    void renderScreenViews(Screen::ScreenData &screen, Container container)
+    void renderScreenViews(Screen::ScreenData &screen)
     {
       clearScreen(screen);
       renderView(screen, screen.leftView);
       renderView(screen, screen.rightView);
-      /* renderContainerBorder(screen, container); */
     }
 
     void renderTabsContainer(Context *context, Container *container)
@@ -116,23 +115,22 @@ namespace Dirt
       }
     }
 
-    void highlightLine(Context *context, Screen::ScreenData &screen)
+    void renderCursorLine(Context *context, Screen::ScreenData &screen)
     {
       size_t cursorFilenameLength = min(
-          strlen(screen.active->entries[screen.active->cursorIndex.actualIndex].cFileName),
-          screen.active->width);
-      size_t emptySpace = 
-        screen.active->width - cursorFilenameLength;
+          strlen(screen.activeView->entries[screen.activeView->cursorIndex.actualIndex].cFileName),
+          screen.activeView->width);
+      size_t emptySpace = (screen.activeView->width - cursorFilenameLength);
       COORD coords;
       DWORD nSet = 0;
-      coords.X = screen.active->renderRect.Left;
-      coords.Y = screen.active->renderRect.Top + screen.active->cursorIndex.visualIndex;
+      coords.X = screen.activeView->renderRect.Left;
+      coords.Y = screen.activeView->renderRect.Top + screen.activeView->cursorIndex.visualIndex;
       WORD attribs = BACKGROUND_BLUE | FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
 
       char fullPath[MAX_PATH] = {};
       Entry::getFullPath(
           fullPath,
-          screen.active->entries[screen.active->cursorIndex.actualIndex].cFileName,
+          screen.activeView->entries[screen.activeView->cursorIndex.actualIndex].cFileName,
           MAX_PATH);
 
       if(hashmapContains(context->selection, fullPath, MAX_PATH, 0, 0))
@@ -143,7 +141,7 @@ namespace Dirt
       FillConsoleOutputAttribute(
         screen.backBuffer,
         attribs,
-        screen.active->width,
+        screen.activeView->width,
         coords,
         &nSet);
 
@@ -157,6 +155,7 @@ namespace Dirt
           &nSet);
       }
     }
+
     void styleView(Context *context, Screen::ScreenData &screen, Screen::View view)
     {
       size_t minHeight = min(view.nEntries, view.height+view.cursorIndex.scroll);
@@ -250,59 +249,59 @@ namespace Dirt
         //render corners
         renderUnicodeCharacter(
             screen,
-            splitBox->container.pos[0],
-            splitBox->container.pos[1],
+            splitBox->frameContainer.pos[0],
+            splitBox->frameContainer.pos[1],
             splitBox->glyphs.topLeft,
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         renderUnicodeCharacter(
             screen,
-            splitBox->container.pos[0] + splitBox->container.width,
-            splitBox->container.pos[1],
+            splitBox->frameContainer.pos[0] + splitBox->frameContainer.width,
+            splitBox->frameContainer.pos[1],
             splitBox->glyphs.topRight,
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         renderUnicodeCharacter(
             screen,
-            splitBox->container.pos[0],
-            splitBox->container.pos[1] + splitBox->container.height,
+            splitBox->frameContainer.pos[0],
+            splitBox->frameContainer.pos[1] + splitBox->frameContainer.height,
             splitBox->glyphs.bottomLeft,
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         renderUnicodeCharacter(
             screen,
-            splitBox->container.pos[0] + splitBox->container.width,
-            splitBox->container.pos[1] + splitBox->container.height,
+            splitBox->frameContainer.pos[0] + splitBox->frameContainer.width,
+            splitBox->frameContainer.pos[1] + splitBox->frameContainer.height,
             splitBox->glyphs.bottomRight,
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         // Top line
         renderCardinalLineWithGlyph(
             screen,
             DIRT_DIRECTION_HORIZONTAL,
-            splitBox->container.pos[0] + 1,
-            splitBox->container.pos[1],
-            splitBox->container.width - 1,
+            splitBox->frameContainer.pos[0] + 1,
+            splitBox->frameContainer.pos[1],
+            splitBox->frameContainer.width - 1,
             splitBox->glyphs.horizontal);
         // Bottom line
         renderCardinalLineWithGlyph(
             screen,
             DIRT_DIRECTION_HORIZONTAL,
-            splitBox->container.pos[0] + 1,
-            splitBox->container.pos[1] + splitBox->container.height,
-            splitBox->container.width - 1,
+            splitBox->frameContainer.pos[0] + 1,
+            splitBox->frameContainer.pos[1] + splitBox->frameContainer.height,
+            splitBox->frameContainer.width - 1,
             splitBox->glyphs.horizontal);
         // Left line
         renderCardinalLineWithGlyph(
             screen,
             DIRT_DIRECTION_VERTICAL,
-            splitBox->container.pos[0],
-            splitBox->container.pos[1] + 1,
-            splitBox->container.height - 1,
+            splitBox->frameContainer.pos[0],
+            splitBox->frameContainer.pos[1] + 1,
+            splitBox->frameContainer.height - 1,
             splitBox->glyphs.vertical);
         // Right line
         renderCardinalLineWithGlyph(
             screen,
             DIRT_DIRECTION_VERTICAL,
-            splitBox->container.pos[0] + splitBox->container.width,
-            splitBox->container.pos[1] + 1,
-            splitBox->container.height - 1,
+            splitBox->frameContainer.pos[0] + splitBox->frameContainer.width,
+            splitBox->frameContainer.pos[1] + 1,
+            splitBox->frameContainer.height - 1,
             splitBox->glyphs.vertical);
       }
 
@@ -314,46 +313,46 @@ namespace Dirt
           {
             renderUnicodeCharacter(
                 screen,
-                splitBox->container.pos[0],
-                splitBox->childB->container.pos[1],
+                splitBox->frameContainer.pos[0],
+                splitBox->childB->frameContainer.pos[1],
                 splitBox->glyphs.splitHorizontalLeft,
                 FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
             renderUnicodeCharacter(
                 screen,
-                splitBox->container.pos[0] + splitBox->container.width,
-                splitBox->childB->container.pos[1],
+                splitBox->frameContainer.pos[0] + splitBox->frameContainer.width,
+                splitBox->childB->frameContainer.pos[1],
                 splitBox->glyphs.splitHorizontalRight,
                 FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 
             renderCardinalLineWithGlyph(
                 screen,
                 DIRT_DIRECTION_HORIZONTAL,
-                splitBox->container.pos[0] + 1,
-                splitBox->childB->container.pos[1],
-                splitBox->container.width - 1,
+                splitBox->frameContainer.pos[0] + 1,
+                splitBox->childB->frameContainer.pos[1],
+                splitBox->frameContainer.width - 1,
                 splitBox->glyphs.horizontal);
           } break;
           case(DIRT_SPLIT_VERTICAL):
           {
             renderUnicodeCharacter(
                 screen,
-                splitBox->childB->container.pos[0],
-                splitBox->container.pos[1],
+                splitBox->childB->frameContainer.pos[0],
+                splitBox->frameContainer.pos[1],
                 splitBox->glyphs.splitVerticalTop,
                 FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
             renderUnicodeCharacter(
                 screen,
-                splitBox->childB->container.pos[0],
-                splitBox->container.pos[1] + splitBox->container.height,
+                splitBox->childB->frameContainer.pos[0],
+                splitBox->frameContainer.pos[1] + splitBox->frameContainer.height,
                 splitBox->glyphs.splitVerticalBottom,
                 FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 
             renderCardinalLineWithGlyph(
                 screen,
                 DIRT_DIRECTION_VERTICAL,
-                splitBox->childB->container.pos[0],
-                splitBox->container.pos[1] + 1,
-                splitBox->container.height - 1,
+                splitBox->childB->frameContainer.pos[0],
+                splitBox->frameContainer.pos[1] + 1,
+                splitBox->frameContainer.height - 1,
                 splitBox->glyphs.vertical);
           } break;
         }
@@ -370,12 +369,12 @@ namespace Dirt
               coord++;
             }
 
-            if(childA->childB->container.pos[coord] == childB->childB->container.pos[coord])
+            if(childA->childB->frameContainer.pos[coord] == childB->childB->frameContainer.pos[coord])
             {
               renderUnicodeCharacter(
                   screen,
-                  childB->childB->container.pos[0],
-                  childB->childB->container.pos[1],
+                  childB->childB->frameContainer.pos[0],
+                  childB->childB->frameContainer.pos[1],
                   splitBox->glyphs.splitCross,
                   FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
             }
