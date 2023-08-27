@@ -48,7 +48,7 @@ int main(int argc, char **argv)
   if(!(context->selection = 
     hashmapCreate(
     DIRT_SELECTIONBUF_MIN_SIZE, 
-    DIRT_SELECTIONBUF_MIN_DUPES, 
+    DIRT_SELECTIONBUF_MIN_DUPES,
     MAX_PATH)))
   {
     printf("Failed to init hashmap for entry selection\n");

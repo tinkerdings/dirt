@@ -48,7 +48,7 @@ namespace Dirt
     void setViewPath(Context *context, View &view, char *relPath);
     void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory);
     bool setActiveView(ScreenData &screen, View &view);
-    View::CursorIndex getStoredViewCursorIndex(View &view, size_t *hashIndexOut, size_t *dupeIndexOut);
+    bool getStoredViewCursorIndex(View &view, View::CursorIndex *cursorIndex, size_t *hashIndexOut, size_t *dupeIndexOut);
     void setViewEntries(Context *context, View &view, bool resizeBuffer);
     void incrementScreenCursorIndex(Context *context, ScreenData &screen);
     void decrementScreenCursorIndex(Context *context, ScreenData &screen);

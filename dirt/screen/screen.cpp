@@ -209,8 +209,8 @@ namespace Dirt
         memcpy(cursorIndexEntry.path, view.path, viewPathLen);
 
         size_t hashIndex, dupeIndex;
-        View::CursorIndex testIndex = getStoredViewCursorIndex(view, &hashIndex, &dupeIndex);
-        if(testIndex.actualIndex + testIndex.visualIndex)
+        View::CursorIndex testIndex = {};
+        if(getStoredViewCursorIndex(view, &testIndex, &hashIndex, &dupeIndex))
         {
           hashmapDirectWrite(
               view.cursorMap,
@@ -218,7 +218,7 @@ namespace Dirt
               hashIndex,
               dupeIndex,
               sizeof(View::CursorMapEntry));
-        }
+        } 
         else 
         {
           Dirt::Structures::hashmapInsertAtKey(
@@ -234,7 +234,7 @@ namespace Dirt
 
       setViewEntries(context, view, true);
 
-      view.cursorIndex = getStoredViewCursorIndex(view, 0, 0);
+      getStoredViewCursorIndex(view, &view.cursorIndex, 0, 0);
     }
 
     void createFilenameCharInfoBuffer(CHAR_INFO *buffer, CHAR *filename, SHORT len, bool isDirectory)
@@ -258,7 +258,7 @@ namespace Dirt
       }
     }
 
-    View::CursorIndex getStoredViewCursorIndex(View &view, size_t *hashIndexOut, size_t *dupeIndexOut)
+    bool getStoredViewCursorIndex(View &view, View::CursorIndex *cursorIndex, size_t *hashIndexOut, size_t *dupeIndexOut)
     {
       size_t viewPathLen = strlen(view.path);
       size_t hashIndex = hashmapGetIndex(view.cursorMap, view.path, viewPathLen);
@@ -281,13 +281,17 @@ namespace Dirt
             {
               *dupeIndexOut = i;
             }
-            return entry->cursorIndex;
+
+            memcpy(cursorIndex, &entry->cursorIndex, sizeof(View::CursorIndex));
+            return true;
           }
         }
       }
 
-      View::CursorIndex zeroIndex = {0, 0, 0};
-      return zeroIndex;
+      cursorIndex->actualIndex = 0;
+      cursorIndex->visualIndex = 0;
+      cursorIndex->scroll = 0;
+      return false;
     }
 
     void incrementScreenCursorIndex(Context *context, ScreenData &screen)
