@@ -249,6 +249,11 @@ namespace Dirt
       if(isDirectory)
       {
         CHAR_INFO ci = {'/', FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE };
+        buffer[i++] = ci;
+      }
+      for(; i < len; i++)
+      {
+        CHAR_INFO ci = {' ', 0};
         buffer[i] = ci;
       }
     }
