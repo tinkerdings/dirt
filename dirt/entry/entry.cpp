@@ -1,3 +1,5 @@
+#include "dirt/rendering/rendering.h"
+#include <dirt/screen/screen.h>
 #include <dirt/context/context.h>
 #include <dirt/entry/entry.h>
 #include <dirt/structures/hashmap.h>
@@ -345,8 +347,13 @@ namespace Dirt
         }
       }
 
-      freeSelection(selection, nSelected);
+      Screen::ScreenData *currentScreen = context->currentScreen;
 
+      /* if(currentScreen->activeView->cursorIndex.visualIndex */
+
+      Rendering::refresh(context, *currentScreen);
+
+      freeSelection(selection, nSelected);
       return true;
     }
 
