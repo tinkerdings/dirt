@@ -1,5 +1,5 @@
 @echo off
 
 pushd ..\build
-remedybg dirt.exe
+start remedybg dirt.exe
 popd
