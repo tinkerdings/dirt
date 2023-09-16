@@ -50,6 +50,7 @@ namespace Dirt
     bool setActiveView(ScreenData &screen, View &view);
     bool getStoredViewCursorIndex(View &view, View::CursorIndex *cursorIndex, size_t *hashIndexOut, size_t *dupeIndexOut);
     void setViewEntries(Context *context, View &view, bool resizeBuffer);
+    void updateScreenCursorIndexOnDeletion(Context *context, ScreenData &screen, size_t nDeleted);
     void incrementScreenCursorIndex(Context *context, ScreenData &screen);
     void decrementScreenCursorIndex(Context *context, ScreenData &screen);
   }

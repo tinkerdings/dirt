@@ -213,11 +213,11 @@ namespace Dirt
         if(getStoredViewCursorIndex(view, &testIndex, &hashIndex, &dupeIndex))
         {
           hashmapDirectWrite(
-              view.cursorMap,
-              &cursorIndexEntry,
-              hashIndex,
-              dupeIndex,
-              sizeof(View::CursorMapEntry));
+            view.cursorMap,
+            &cursorIndexEntry,
+            hashIndex,
+            dupeIndex,
+            sizeof(View::CursorMapEntry));
         } 
         else 
         {
@@ -292,6 +292,45 @@ namespace Dirt
       cursorIndex->visualIndex = 0;
       cursorIndex->scroll = 0;
       return false;
+    }
+
+    void updateScreenCursorIndexOnDeletion(Context *context, ScreenData &screen, size_t nDeleted)
+    {
+      if(nDeleted == 0)
+      {
+        return;
+      }
+
+      View *currentView = screen.activeView;
+
+      size_t newActualIndex = min(currentView->cursorIndex.actualIndex, currentView->nEntries-1);
+      currentView->cursorIndex.actualIndex = newActualIndex;
+      size_t indexDiff = currentView->cursorIndex.actualIndex - newActualIndex;
+      if(
+          (currentView->nEntries > currentView->height) &&
+          ((currentView->height + currentView->cursorIndex.scroll) >= currentView->nEntries)
+        )
+      {
+        size_t scrollDiff = min(currentView->cursorIndex.scroll, nDeleted);
+        currentView->cursorIndex.scroll -= scrollDiff;
+      }
+
+      if(currentView->cursorIndex.visualIndex >= currentView->nEntries)
+      {
+        currentView->cursorIndex.visualIndex = currentView->nEntries-1;
+      }
+
+      size_t hashIndex, dupeIndex;
+      Screen::View::CursorIndex testIndex = {};
+      if(getStoredViewCursorIndex(*currentView, &testIndex, &hashIndex, &dupeIndex))
+      {
+        hashmapDirectWrite(
+            currentView->cursorMap,
+            &(currentView->cursorIndex),
+            hashIndex,
+            dupeIndex,
+            sizeof(Screen::View::CursorMapEntry));
+      }
     }
 
     void incrementScreenCursorIndex(Context *context, ScreenData &screen)

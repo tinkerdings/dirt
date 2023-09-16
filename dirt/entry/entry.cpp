@@ -349,11 +349,15 @@ namespace Dirt
 
       Screen::ScreenData *currentScreen = context->currentScreen;
 
-      /* if(currentScreen->activeView->cursorIndex.visualIndex */
+      freeSelection(selection, nSelected);
+
+      Screen::View *currentView = context->currentScreen->activeView;
+      currentView->nEntries -= nSelected;
+
+      Screen::updateScreenCursorIndexOnDeletion(context, *(context->currentScreen), nSelected);
 
       Rendering::refresh(context, *currentScreen);
 
-      freeSelection(selection, nSelected);
       return true;
     }
 
