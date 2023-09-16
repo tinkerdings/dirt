@@ -87,9 +87,9 @@ namespace Dirt
 
     void refresh(Context *context, Screen::ScreenData &screen)
     {
-      Rendering::clearScreen(screen);
-      setViewEntries(context, screen.leftView, false);
-      setViewEntries(context, screen.rightView, false);
+      clearScreen(screen);
+      Screen::setViewEntries(context, screen.leftView, false);
+      Screen::setViewEntries(context, screen.rightView, false);
     }
 
     void renderView(Screen::ScreenData &screen, Screen::View &view)
