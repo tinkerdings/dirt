@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <dirt/context/context.h>
+#include <dirt/state/state.h>
 #include <dirt/structures/hashmap.h>
 #include <dirt/error/errorCode.h>
 #include <dirt/memory/memory.h>
@@ -55,22 +56,26 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
-  if(stdinHandle == INVALID_HANDLE_VALUE)
-  {
-    printf("GetStdHandle failed (%lu)\n", GetLastError());
-    return 1;
-  }
-
-  SetConsoleMode(stdinHandle, ENABLE_WINDOW_INPUT);
-
   while(!context->quit)
   {
-    Rendering::renderScreenViews(*context->currentScreen);
-    Rendering::styleScreenViews(context, *(context->currentScreen));
-    Rendering::renderSplitBox(*context->currentScreen, context->viewsSplitBox);
-    Rendering::swapScreenBuffers(*(context->currentScreen));
-    Input::handleInput(context, *(context->currentScreen), stdinHandle);
+    switch(context->state)
+    {
+      case(DIRT_STATE_MAIN):
+      {
+        State::stateMain(context);
+        break;
+      }
+      case(DIRT_STATE_VOLUME):
+      {
+        State::stateVolume(context);
+        break;
+      }
+      case(DIRT_STATE_PROMPT):
+      {
+        State::statePrompt(context);
+        break;
+      }
+    }
   }
 
   // This is super slow, maybe not a point to do this, since exit.

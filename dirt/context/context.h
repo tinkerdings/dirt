@@ -23,8 +23,10 @@ namespace Dirt
 
   struct Context
   {
+    HANDLE stdinHandle;
     Screen::ScreenData **screens;
     Screen::ScreenData *currentScreen = 0;
+    uint8_t state = 0;
     HANDLE backBuffer = 0;
     HANDLE frontBuffer = 0;
     bool quit;

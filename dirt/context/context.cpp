@@ -12,6 +12,17 @@ namespace Dirt
       return 0;
     }
 
+    context->state = DIRT_STATE_MAIN;
+
+    context->stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
+    if(context->stdinHandle == INVALID_HANDLE_VALUE)
+    {
+      printf("GetStdHandle failed (%lu)\n", GetLastError());
+      return 0;
+    }
+
+    SetConsoleMode(context->stdinHandle, ENABLE_WINDOW_INPUT);
+
     context->standardGlyphs.horizontal                /* = "━";*/  = "═";
     context->standardGlyphs.vertical                  /* = "┃"; */ = "║";
     context->standardGlyphs.topLeft                   /* = "╭"; */ = "╔";
