@@ -57,7 +57,7 @@ namespace Dirt
         }
         if(fileAttribs & FILE_ATTRIBUTE_REPARSE_POINT)
         {
-          // TODO: Handle this
+          // TODO: Handle reparse points.
         }
         else 
         {
@@ -153,7 +153,7 @@ namespace Dirt
           printf("calloc failed to allocate string for selected entry array selected[i]\n");
           for(int j = i-1; j >= 0; j--)
           {
-            free(selected[j]); // TODO do this kind of freeing in other places.
+            free(selected[j]); // TODO make sure to free 2d arrays properly on failed allocation.
           }
           free(selected);
           return 0;
@@ -191,7 +191,7 @@ namespace Dirt
                     printf("realloc, then calloc failed to allocate string for selected entry array selected[i]\n");
                     for(int h = k-1; h >= 0; h--)
                     {
-                      free(selected[h]); // TODO do this kind of freeing in other places.
+                      free(selected[h]);
                     }
                     free(selected);
                     return 0;

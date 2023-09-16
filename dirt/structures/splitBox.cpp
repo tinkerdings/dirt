@@ -18,8 +18,8 @@ namespace Dirt
       Structures::Container contentContainer = {};
       contentContainer.pos[0] = frameContainer.pos[0] + 1;
       contentContainer.pos[1] = frameContainer.pos[1] + 1;
-      contentContainer.width = frameContainer.width - 1;
-      contentContainer.height = frameContainer.height - 1;
+      contentContainer.width = frameContainer.width - 1; // TODO: investigate why this works, should really be - 2 ????
+      contentContainer.height = frameContainer.height - 1; // ^ same here
       splitBox->contentContainer = contentContainer;
 
       return splitBox;
@@ -84,7 +84,6 @@ namespace Dirt
           childFrameContainerA.width = splitBox->frameContainer.width;
           if(signedOffsetAlongOrthogonalAxis < 0)
           {
-            // TODO: This height value does not seem right
             childFrameContainerA.height = splitBox->frameContainer.height + signedOffsetAlongOrthogonalAxis;
           }
           else 

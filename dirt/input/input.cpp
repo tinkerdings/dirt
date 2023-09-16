@@ -188,7 +188,7 @@ namespace Dirt
               case(VK_LEFT):
               case(VK_H):
               {
-                /* if(!isRootDir(screen.activeView.path)) */ // TODO Implement this
+                /* if(!isRootDir(screen.activeView.path)) */ // TODO Implement changing to another volume.
                 /* { */
                 setViewPath(context, *screen.activeView, "..");
                 /* } */
