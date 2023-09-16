@@ -279,6 +279,7 @@ namespace Dirt
       }
 
       freeSelection(selection, nSelected);
+      Rendering::refresh(context, *context->currentScreen);
 
       return true;
     }
