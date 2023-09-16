@@ -23,7 +23,7 @@ namespace Dirt
         SHORT startY,
         SHORT signedLength, // Signed length along specified axis, by direction parameter
         char *character);
-    void renderView(Screen::ScreenData &screen, Screen::View &view);
+    void renderViewEntries(Screen::ScreenData &screen, Screen::View &view);
     int utf8ToUtf16(char *utf8, WCHAR *utf16, int outBufSize);
     CHAR_INFO createGlyphWithAttributes(char *utf8, WORD attributes);
     void renderUnicodeCharacter(Screen::ScreenData &screen, SHORT x, SHORT y, char *character, WORD attributes);

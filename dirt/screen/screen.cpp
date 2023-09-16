@@ -124,11 +124,10 @@ namespace Dirt
       view.height = container.height;
     }
 
-    // TODO: Update this to account for splitBoxes
     void sizeScreenViews(Context *context, ScreenData &screen)
     {
-      sizeScreenView(screen.leftView, context->viewsSplitBox->childA->contentContainer);
-      sizeScreenView(screen.rightView, context->viewsSplitBox->childB->contentContainer);
+      sizeScreenView(screen.leftView, context->viewsSplitBox->childA->childA->contentContainer);
+      sizeScreenView(screen.rightView, context->viewsSplitBox->childB->childA->contentContainer);
     }
 
     bool initScreenViews(Context *context, ScreenData &screen)
@@ -315,7 +314,7 @@ namespace Dirt
         currentView->cursorIndex.scroll -= scrollDiff;
       }
 
-      if(currentView->cursorIndex.visualIndex >= currentView->nEntries)
+      if(currentView->cursorIndex.visualIndex > currentView->nEntries-1)
       {
         currentView->cursorIndex.visualIndex = currentView->nEntries-1;
       }

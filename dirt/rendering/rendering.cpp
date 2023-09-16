@@ -76,8 +76,8 @@ namespace Dirt
     void renderScreenViews(Screen::ScreenData &screen)
     {
       clearScreen(screen);
-      renderView(screen, screen.leftView);
-      renderView(screen, screen.rightView);
+      renderViewEntries(screen, screen.leftView);
+      renderViewEntries(screen, screen.rightView);
     }
 
     void renderTabsContainer(Context *context, Container *container)
@@ -92,10 +92,10 @@ namespace Dirt
       Screen::setViewEntries(context, screen.rightView, false);
     }
 
-    void renderView(Screen::ScreenData &screen, Screen::View &view)
+    void renderViewEntries(Screen::ScreenData &screen, Screen::View &view)
     {
-      size_t minHeight = min(view.nEntries, view.height+view.cursorIndex.scroll);
-      for(size_t i = view.cursorIndex.scroll; i < minHeight; i++)
+      size_t height = min(view.nEntries, view.height+view.cursorIndex.scroll);
+      for(size_t i = view.cursorIndex.scroll; i < height; i++)
       {
         CHAR_INFO filename[MAX_PATH] = {};
         bool isDirectory = (view.entries[i].dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);

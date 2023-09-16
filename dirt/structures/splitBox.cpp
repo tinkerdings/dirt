@@ -18,8 +18,8 @@ namespace Dirt
       Structures::Container contentContainer = {};
       contentContainer.pos[0] = frameContainer.pos[0] + 1;
       contentContainer.pos[1] = frameContainer.pos[1] + 1;
-      contentContainer.width = frameContainer.width - 2;
-      contentContainer.height = frameContainer.height - 2;
+      contentContainer.width = frameContainer.width - 1;
+      contentContainer.height = frameContainer.height - 1;
       splitBox->contentContainer = contentContainer;
 
       return splitBox;
@@ -103,13 +103,16 @@ namespace Dirt
 
           splitBox->childB = createSplitBox(childFrameContainerB, childGlyphs);
           splitBox->childB->parent = splitBox;
-        } break;
+
+          break;
+        } 
 
         case(DIRT_SPLIT_VERTICAL):
         {
           Structures::Container childFrameContainerA;
           childFrameContainerA.pos[0] = splitBox->frameContainer.pos[0];
           childFrameContainerA.pos[1] = splitBox->frameContainer.pos[1];
+          childFrameContainerA.height = splitBox->frameContainer.height;
           if(signedOffsetAlongOrthogonalAxis < 0)
           {
             childFrameContainerA.width = splitBox->frameContainer.width + signedOffsetAlongOrthogonalAxis;
@@ -118,7 +121,6 @@ namespace Dirt
           {
             childFrameContainerA.width = signedOffsetAlongOrthogonalAxis;
           }
-          childFrameContainerA.height = splitBox->frameContainer.height;
 
           Structures::Container childFrameContainerB;
           childFrameContainerB.pos[0] = splitBox->frameContainer.pos[0] + childFrameContainerA.width;
@@ -130,7 +132,9 @@ namespace Dirt
           splitBox->childA->parent = splitBox;
           splitBox->childB = createSplitBox(childFrameContainerB, childGlyphs);
           splitBox->childB->parent = splitBox;
-        } break;
+
+          break;
+        } 
       }
     }
   } // namespace Structures

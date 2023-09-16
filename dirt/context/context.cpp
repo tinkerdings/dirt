@@ -30,8 +30,8 @@ namespace Dirt
     uint16_t consoleWidth = 0;
     uint16_t consoleHeight = 0;
     Screen::getConsoleDimensions(consoleWidth, consoleHeight);
-    viewsSplitBoxFrameContainer.width = consoleWidth - (viewsSplitBoxFrameContainer.pos[0]+2);
-    viewsSplitBoxFrameContainer.height = consoleHeight - (viewsSplitBoxFrameContainer.pos[1]+2);
+    viewsSplitBoxFrameContainer.width = consoleWidth - 2;
+    viewsSplitBoxFrameContainer.height = consoleHeight - viewsSplitBoxFrameContainer.pos[1] - 1;
 
     context->viewsSplitBox = Structures::createSplitBox(viewsSplitBoxFrameContainer, context->standardGlyphs);
     addSplit(context->viewsSplitBox, DIRT_SPLIT_VERTICAL, viewsSplitBoxFrameContainer.width/2, 0);
