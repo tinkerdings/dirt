@@ -248,67 +248,72 @@ namespace Dirt
           );
     }
 
-    void renderSplitBox(Screen::ScreenData &screen, Structures::SplitBox *splitBox)
+    void renderBox(Screen::ScreenData &screen, Structures::Container container, Structures::BoxGlyphs glyphs)
     {
-      if(!splitBox->parent)
-      {
         //render corners
         renderUnicodeCharacter(
             screen,
-            splitBox->frameContainer.pos[0],
-            splitBox->frameContainer.pos[1],
-            splitBox->glyphs.topLeft,
+            container.pos[0],
+            container.pos[1],
+            glyphs.topLeft,
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         renderUnicodeCharacter(
             screen,
-            splitBox->frameContainer.pos[0] + splitBox->frameContainer.width,
-            splitBox->frameContainer.pos[1],
-            splitBox->glyphs.topRight,
+            container.pos[0] + container.width,
+            container.pos[1],
+            glyphs.topRight,
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         renderUnicodeCharacter(
             screen,
-            splitBox->frameContainer.pos[0],
-            splitBox->frameContainer.pos[1] + splitBox->frameContainer.height,
-            splitBox->glyphs.bottomLeft,
+            container.pos[0],
+            container.pos[1] + container.height,
+            glyphs.bottomLeft,
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         renderUnicodeCharacter(
             screen,
-            splitBox->frameContainer.pos[0] + splitBox->frameContainer.width,
-            splitBox->frameContainer.pos[1] + splitBox->frameContainer.height,
-            splitBox->glyphs.bottomRight,
+            container.pos[0] + container.width,
+            container.pos[1] + container.height,
+            glyphs.bottomRight,
             FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
         // Top line
         renderCardinalLineWithGlyph(
             screen,
             DIRT_DIRECTION_HORIZONTAL,
-            splitBox->frameContainer.pos[0] + 1,
-            splitBox->frameContainer.pos[1],
-            splitBox->frameContainer.width - 1,
-            splitBox->glyphs.horizontal);
+            container.pos[0] + 1,
+            container.pos[1],
+            container.width - 1,
+            glyphs.horizontal);
         // Bottom line
         renderCardinalLineWithGlyph(
             screen,
             DIRT_DIRECTION_HORIZONTAL,
-            splitBox->frameContainer.pos[0] + 1,
-            splitBox->frameContainer.pos[1] + splitBox->frameContainer.height,
-            splitBox->frameContainer.width - 1,
-            splitBox->glyphs.horizontal);
+            container.pos[0] + 1,
+            container.pos[1] + container.height,
+            container.width - 1,
+            glyphs.horizontal);
         // Left line
         renderCardinalLineWithGlyph(
             screen,
             DIRT_DIRECTION_VERTICAL,
-            splitBox->frameContainer.pos[0],
-            splitBox->frameContainer.pos[1] + 1,
-            splitBox->frameContainer.height - 1,
-            splitBox->glyphs.vertical);
+            container.pos[0],
+            container.pos[1] + 1,
+            container.height - 1,
+            glyphs.vertical);
         // Right line
         renderCardinalLineWithGlyph(
             screen,
             DIRT_DIRECTION_VERTICAL,
-            splitBox->frameContainer.pos[0] + splitBox->frameContainer.width,
-            splitBox->frameContainer.pos[1] + 1,
-            splitBox->frameContainer.height - 1,
-            splitBox->glyphs.vertical);
+            container.pos[0] + container.width,
+            container.pos[1] + 1,
+            container.height - 1,
+            glyphs.vertical);
+    }
+
+    void renderSplitBox(Screen::ScreenData &screen, Structures::SplitBox *splitBox)
+    {
+      if(!splitBox->parent)
+      {
+        renderBox(screen, splitBox->frameContainer, splitBox->glyphs);
       }
 
       if(splitBox->splitType != DIRT_SPLIT_NONE)

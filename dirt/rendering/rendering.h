@@ -13,6 +13,7 @@ namespace Dirt
 {
   namespace Rendering
   {
+    void renderBox(Screen::ScreenData &screen, Structures::Container container, Structures::BoxGlyphs);
     void renderSplitBox(Screen::ScreenData &screen, Structures::SplitBox *splitBox);
     void renderScreenViews(Screen::ScreenData &screen);
     void renderTabsContainer(Context *context, Container *container);
