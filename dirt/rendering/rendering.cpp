@@ -158,6 +158,10 @@ namespace Dirt
 
     void styleView(Context *context, Screen::ScreenData &screen, Screen::View view)
     {
+      char prevCurDir[MAX_PATH] = {};
+      GetCurrentDirectoryA(MAX_PATH, prevCurDir);
+      SetCurrentDirectory(view.path);
+
       size_t minHeight = min(view.nEntries, view.height+view.cursorIndex.scroll);
       for(int i = view.cursorIndex.scroll; i < minHeight; i++)
       {
@@ -194,6 +198,8 @@ namespace Dirt
               &nSet);
         }
       }
+
+      SetCurrentDirectory(prevCurDir);
     }
 
     int utf8ToUtf16(char *utf8, WCHAR *utf16, int outBufSize)
