@@ -44,7 +44,7 @@ namespace Dirt
     viewsSplitBoxFrameContainer.width = consoleWidth - 2;
     viewsSplitBoxFrameContainer.height = consoleHeight - viewsSplitBoxFrameContainer.pos[1] - 1;
 
-    context->viewsSplitBox = Structures::createSplitBox(viewsSplitBoxFrameContainer, context->standardGlyphs);
+    context->viewsSplitBox = Structures::createSplitBox(viewsSplitBoxFrameContainer, context->standardGlyphs, "DIRECTORY_TAMER");
     addSplit(context->viewsSplitBox, DIRT_SPLIT_VERTICAL, viewsSplitBoxFrameContainer.width/2, 0);
     addSplit(context->viewsSplitBox->childA, DIRT_SPLIT_HORIZONTAL, -2, 0);
     addSplit(context->viewsSplitBox->childB, DIRT_SPLIT_HORIZONTAL, -2, 0);

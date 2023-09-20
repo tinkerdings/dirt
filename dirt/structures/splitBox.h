@@ -33,6 +33,8 @@ namespace Dirt
       Container frameContainer = {};
       Container contentContainer = {};
 
+      char *title = 0;
+
       uint8_t nSplits = 0;
 
       BoxGlyphs glyphs = {};
@@ -44,7 +46,7 @@ namespace Dirt
       SplitBox *childB = 0; // Bottom or Right
     };
 
-    SplitBox *createSplitBox(Structures::Container frameContainer, BoxGlyphs glyphs);
+    SplitBox *createSplitBox(Structures::Container frameContainer, BoxGlyphs glyphs, char *title);
     void destroySplitBox(SplitBox *splitBox, uint8_t &splitDeleteCounter);
     void incrementSplitCounter(SplitBox *splitBox);
     void addSplit(SplitBox *splitBox, uint8_t splitType, int32_t signedOffsetAlongOrthogonalAxis, BoxGlyphs *newGlyphs);

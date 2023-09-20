@@ -5,12 +5,19 @@ namespace Dirt
 {
   namespace Structures
   {
-    SplitBox *createSplitBox(Structures::Container frameContainer, BoxGlyphs glyphs)
+    SplitBox *createSplitBox(Structures::Container frameContainer, BoxGlyphs glyphs, char *title)
     {
       SplitBox *splitBox = 0;
       if(!(splitBox = (SplitBox *)calloc(1, sizeof(SplitBox))))
       {
         return 0;
+      }
+
+      if(title)
+      {
+        size_t titleLen = strlen(title);
+        splitBox->title = (char *)malloc(titleLen + 1);
+        memcpy(splitBox->title, title, titleLen);
       }
       splitBox->glyphs = glyphs;
       splitBox->frameContainer = frameContainer;
@@ -97,10 +104,10 @@ namespace Dirt
           childFrameContainerB.width = splitBox->frameContainer.width;
           childFrameContainerB.height = splitBox->frameContainer.height - childFrameContainerA.height;
 
-          splitBox->childA = createSplitBox(childFrameContainerA, childGlyphs);
+          splitBox->childA = createSplitBox(childFrameContainerA, childGlyphs, 0);
           splitBox->childA->parent = splitBox;
 
-          splitBox->childB = createSplitBox(childFrameContainerB, childGlyphs);
+          splitBox->childB = createSplitBox(childFrameContainerB, childGlyphs, 0);
           splitBox->childB->parent = splitBox;
 
           break;
@@ -127,9 +134,9 @@ namespace Dirt
           childFrameContainerB.width = splitBox->frameContainer.width - childFrameContainerA.width;
           childFrameContainerB.height = splitBox->frameContainer.height;
 
-          splitBox->childA = createSplitBox(childFrameContainerA, childGlyphs);
+          splitBox->childA = createSplitBox(childFrameContainerA, childGlyphs, 0);
           splitBox->childA->parent = splitBox;
-          splitBox->childB = createSplitBox(childFrameContainerB, childGlyphs);
+          splitBox->childB = createSplitBox(childFrameContainerB, childGlyphs, 0);
           splitBox->childB->parent = splitBox;
 
           break;

@@ -92,6 +92,36 @@ namespace Dirt
       Screen::setViewEntries(context, screen.rightView, false);
     }
 
+    void renderString(Context *context, Structures::Container destination, char *text, WORD charAttribs)
+    {
+      size_t len = strlen(text);
+      CHAR_INFO *stringData = (CHAR_INFO *)malloc(len * sizeof(CHAR_INFO));
+
+      for(size_t i = 0; i < len; i++)
+      {
+        stringData[i] = {(WCHAR)text[i], charAttribs};
+      }
+
+      COORD sourceDimensions = {(SHORT)len, 1};
+      COORD sourcePos = {0, 0};
+      SMALL_RECT destinationRect = 
+      {
+        destination.pos[0],
+        destination.pos[1],
+        len, 1
+      };
+
+      if(!WriteConsoleOutput(context->currentScreen->backBuffer, stringData, sourceDimensions, sourcePos, &destinationRect))
+      {
+        printf("%s%dWriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
+
+        free(stringData);
+        return;
+      }
+
+      free(stringData);
+    }
+
     void renderViewEntries(Screen::ScreenData &screen, Screen::View &view)
     {
       size_t height = min(view.nEntries, view.height+view.cursorIndex.scroll);
@@ -248,7 +278,7 @@ namespace Dirt
           );
     }
 
-    void renderBox(Screen::ScreenData &screen, Structures::Container container, Structures::BoxGlyphs glyphs)
+    void renderBox(Context *context, Screen::ScreenData &screen, Structures::Container container, Structures::BoxGlyphs glyphs, char *title)
     {
         //render corners
         renderUnicodeCharacter(
@@ -307,13 +337,24 @@ namespace Dirt
             container.pos[1] + 1,
             container.height - 1,
             glyphs.vertical);
+
+        if(title)
+        {
+          size_t len = strlen(title);
+          Structures::Container titleContainer = 
+          {
+            {container.pos[0] + 10, container.pos[1]},
+            len, 10
+          };
+          renderString(context, titleContainer, title, FOREGROUND_RED);
+        }
     }
 
-    void renderSplitBox(Screen::ScreenData &screen, Structures::SplitBox *splitBox)
+    void renderSplitBox(Context *context, Screen::ScreenData &screen, Structures::SplitBox *splitBox)
     {
       if(!splitBox->parent)
       {
-        renderBox(screen, splitBox->frameContainer, splitBox->glyphs);
+        renderBox(context, screen, splitBox->frameContainer, splitBox->glyphs, splitBox->title);
       }
 
       if(splitBox->splitType != DIRT_SPLIT_NONE)
@@ -392,8 +433,8 @@ namespace Dirt
           }
         }
 
-        renderSplitBox(screen, splitBox->childA);
-        renderSplitBox(screen, splitBox->childB);
+        renderSplitBox(context, screen, splitBox->childA);
+        renderSplitBox(context, screen, splitBox->childB);
       }
     }
 
@@ -455,5 +496,65 @@ namespace Dirt
         return;
       }
     }
-  }
-}
+
+    void fillContainer(Context *context, Structures::Container container, WORD charAttribs)
+    {
+      CHAR_INFO clearChar = {' ', charAttribs};
+      size_t size = (container.width + 1) * (container.height + 1);
+      CHAR_INFO *clearArea = (CHAR_INFO *)malloc(size * sizeof(CHAR_INFO));
+      for(size_t i = 0; i < size; i++)
+      {
+        clearArea[i] = clearChar;
+      }
+      
+      COORD sourcePos = {0, 0};
+      SMALL_RECT destRect;
+      COORD sourceSize = {(SHORT)container.width + 1, (SHORT)container.height + 1};
+      destRect.Top = container.pos[1];
+      destRect.Left = container.pos[0];
+      destRect.Bottom = destRect.Top + container.height;
+      destRect.Right = destRect.Left + container.width;
+      if(!WriteConsoleOutput(context->currentScreen->backBuffer, clearArea, sourceSize, sourcePos, &destRect))
+      {
+        printf("%s%d WriteConsoleOutput failed (%lu)\n", __FILE__, __LINE__, GetLastError());
+        free(clearArea);
+        return;
+      }
+
+      free(clearArea);
+    }
+
+    void renderDriveSwitcher(Context *context)
+    {
+      uint16_t consoleWidth = 0;
+      uint16_t consoleHeight = 0;
+      Screen::getConsoleDimensions(consoleWidth, consoleHeight);
+      uint16_t promptWidth = (uint16_t)(consoleWidth * 0.4);
+      uint16_t promptHeight = (uint16_t)(consoleHeight * 0.4);
+
+      Structures::Container promptContainer = 
+      {
+        {
+          (uint16_t)((consoleWidth/2)-(promptWidth/2)),
+          (uint16_t)((consoleHeight/2)-(promptHeight/2))
+        },
+        promptWidth,
+        promptHeight
+      };
+
+      renderBox(context, *context->currentScreen, promptContainer, context->standardGlyphs, "Select Drive");
+
+      Container innerContainer = 
+      {
+        {
+          (uint16_t)(promptContainer.pos[0]+1),
+          (uint16_t)(promptContainer.pos[1]+1)
+        },
+        (uint16_t)(promptContainer.width-2),
+        (uint16_t)(promptContainer.height-2)
+      };
+
+      fillContainer(context, innerContainer, 0);
+    }
+  } // namespace Rendering
+} // namespace Dirt

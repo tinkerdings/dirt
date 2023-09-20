@@ -13,8 +13,8 @@ namespace Dirt
 {
   namespace Rendering
   {
-    void renderBox(Screen::ScreenData &screen, Structures::Container container, Structures::BoxGlyphs);
-    void renderSplitBox(Screen::ScreenData &screen, Structures::SplitBox *splitBox);
+    void renderBox(Context *context, Screen::ScreenData &screen, Structures::Container container, Structures::BoxGlyphs glyphs, char *title);
+    void renderSplitBox(Context *context, Screen::ScreenData &screen, Structures::SplitBox *splitBox);
     void renderScreenViews(Screen::ScreenData &screen);
     void renderTabsContainer(Context *context, Container *container);
     void renderCardinalLineWithGlyph(
@@ -33,6 +33,9 @@ namespace Dirt
     void styleScreenViews(Context *context, Screen::ScreenData &screen);
     void renderCursorLine(Context *context, Screen::ScreenData &screen);
     void swapScreenBuffers(Screen::ScreenData &screen);
+    void renderString(Context *context, Structures::Container destination, char *text, WORD charAttribs);
+    void fillContainer(Context *context, Structures::Container container, WORD charAttribs);
+    void renderDriveSwitcher(Context *context);
     void refresh(Context *context, Screen::ScreenData &screen);
   }
 }

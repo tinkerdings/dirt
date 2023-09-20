@@ -180,8 +180,8 @@ namespace Dirt
     {
       CONSOLE_SCREEN_BUFFER_INFO bufferInfo;
       GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &bufferInfo);
-      width = (bufferInfo.srWindow.Right - bufferInfo.srWindow.Left) + 1;
-      height = (bufferInfo.srWindow.Bottom - bufferInfo.srWindow.Top) + 1;
+      width = (bufferInfo.srWindow.Right - bufferInfo.srWindow.Left);
+      height = (bufferInfo.srWindow.Bottom - bufferInfo.srWindow.Top);
     }
 
     void setViewPath(Context *context, View &view, char *relPath)

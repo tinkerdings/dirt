@@ -9,10 +9,11 @@ namespace Dirt
   {
     void stateMain(Context *context)
     {
-      Rendering::renderSplitBox(*context->currentScreen, context->viewsSplitBox);
+      Rendering::renderSplitBox(context, *context->currentScreen, context->viewsSplitBox);
       Rendering::renderScreenViews(*context->currentScreen);
       Rendering::styleScreenViews(context, *context->currentScreen);
-      /* Rendering::rednerTabsContainer(context, */ 
+      Rendering::renderDriveSwitcher(context);
+      /* Rendering::renderTabsContainer(context, */ 
       Rendering::swapScreenBuffers(*(context->currentScreen));
       Input::handleInput(context, *(context->currentScreen), context->stdinHandle);
     }
